@@ -1,0 +1,83 @@
+/* Contact Page Styles */
+.contact-hero {
+    background: linear-gradient(rgba(25, 135, 84, 0.9), rgba(25, 135, 84, 0.7)), url('../images/contact-bg.jpg');
+    background-size: cover;
+    background-position: center;
+    color: white;
+    padding: 5rem 0;
+    margin-bottom: 3rem;
+}
+
+.contact-info-card {
+    transition: transform 0.3s;
+    border: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.contact-info-card:hover {
+    transform: translateY(-10px);
+}
+
+.contact-form .form-control:focus {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+}
+
+.contact-form textarea {
+    resize: vertical;
+    min-height: 150px;
+}
+
+.contact-type-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.contact-type-badge {
+    padding: 8px 15px;
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+}
+
+.contact-type-badge:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.contact-type-badge.active {
+    background: #198754;
+    color: white;
+    border-color: #198754;
+}
+
+/* FAQ Styles */
+.accordion-button {
+    font-weight: 500;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+}
+
+.accordion-button:focus {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .contact-hero {
+        padding: 3rem 0;
+    }
+    
+    .contact-info-card {
+        margin-bottom: 1.5rem;
+    }
+}

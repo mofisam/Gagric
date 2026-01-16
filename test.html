@@ -1,0 +1,558 @@
+<?php
+ob_start();
+require_once '../../includes/header.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/functions.php';
+require_once '../../includes/validation.php';
+requireAdmin();
+
+$db = new Database();
+
+// Handle category actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['add_category'])) {
+        setFlashMessage('Test add_category', 'success');
+        $name = trim($_POST['name']);
+        $description = trim($_POST['description']);
+        $parent_id = !empty($_POST['parent_id']) ? (int)$_POST['parent_id'] : null;
+        $sort_order = (int)$_POST['sort_order'];
+        if (!empty($name)) {
+            $slug = strtolower(str_replace(' ', '-', $name));
+            
+            // Check if category already exists
+            $existing = $db->fetchOne("SELECT id FROM categories WHERE name = ? OR slug = ?", [$name, $slug]);
+            if ($existing) {
+                setFlashMessage('Category with this name already exists', 'error');
+            } else {
+                $db->query(
+                    "INSERT INTO categories (name, slug, description, parent_id, sort_order) VALUES (?, ?, ?, ?, ?)",
+                    [$name, $slug, $description, $parent_id, $sort_order]
+                );
+                setFlashMessage('Category added successfully', 'success');
+            }
+        }
+    }
+    
+    if (isset($_POST['update_category'])) {
+        setFlashMessage('Test update_category', 'success');
+        $category_id = (int)$_POST['category_id'];
+        $name = trim($_POST['name']);
+        $description = trim($_POST['description']);
+        $is_active = isset($_POST['is_active']) ? 1 : 0;
+        $sort_order = (int)$_POST['sort_order'];
+        
+        if (!empty($name)) {
+            $slug = strtolower(str_replace(' ', '-', $name));
+            
+            // Check if category name conflicts (excluding current category)
+            $existing = $db->fetchOne("SELECT id FROM categories WHERE (name = ? OR slug = ?) AND id != ?", [$name, $slug, $category_id]);
+            if ($existing) {
+                setFlashMessage('Another category with this name already exists', 'error');
+            } else {
+                $db->query(
+                    "UPDATE categories SET name = ?, slug = ?, description = ?, is_active = ?, sort_order = ? WHERE id = ?",
+                    [$name, $slug, $description, $is_active, $sort_order, $category_id]
+                );
+                setFlashMessage('Category updated successfully', 'success');
+            }
+        }
+    }
+    
+    if (isset($_POST['delete_category'])) {
+        setFlashMessage('Test delete_category', 'success');
+        $category_id = (int)$_POST['category_id'];
+        
+        // Check if category has subcategories
+        $subcategories = $db->fetchOne("SELECT COUNT(*) as count FROM categories WHERE parent_id = ?", [$category_id])['count'];
+        if ($subcategories > 0) {
+            setFlashMessage('Cannot delete category that has subcategories', 'error');
+        } else {
+            // Check if category has products
+            $product_count = $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE category_id = ?", [$category_id])['count'];
+            if ($product_count > 0) {
+                setFlashMessage('Cannot delete category that has products. Please reassign products first.', 'error');
+            } else {
+                $db->query("DELETE FROM categories WHERE id = ?", [$category_id]);
+                setFlashMessage('Category deleted successfully', 'success');
+            }
+        }
+    }
+    
+    header('Location: categories.php');
+    exit;
+}
+
+// Get all categories with hierarchy
+$categories = $db->fetchAll("
+    SELECT c.*, 
+           p.name as parent_name,
+           (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count,
+           (SELECT COUNT(*) FROM categories WHERE parent_id = c.id) as subcategory_count
+    FROM categories c 
+    LEFT JOIN categories p ON c.parent_id = p.id 
+    ORDER BY c.parent_id IS NULL DESC, c.sort_order, c.name
+");
+
+// Get parent categories for dropdowns
+$parent_categories = $db->fetchAll("
+    SELECT id, name 
+    FROM categories 
+    WHERE parent_id IS NULL AND is_active = TRUE 
+    ORDER BY sort_order, name
+");
+
+// Build category tree for display
+function buildCategoryTree($categories, $parent_id = null, $level = 0) {
+    $tree = [];
+    foreach ($categories as $category) {
+        if ($category['parent_id'] == $parent_id) {
+            $category['level'] = $level;
+            $tree[] = $category;
+            // Add subcategories
+            $subcategories = buildCategoryTree($categories, $category['id'], $level + 1);
+            $tree = array_merge($tree, $subcategories);
+        }
+    }
+    return $tree;
+}
+
+$category_tree = buildCategoryTree($categories);
+
+$page_title = "Manage Categories";
+ob_end_flush();
+?>
+
+<div class="container-fluid">
+    <div class="row">
+        <?php include '../includes/sidebar.php'; ?>
+        
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Manage Categories</h1>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                    <i class="bi bi-plus-circle"></i> Add Category
+                </button>
+            </div>
+
+            <!-- Categories Statistics -->
+            <div class="row mb-4">
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-primary shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                        Total Categories</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo count($categories); ?></div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-tags fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-success shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                        Main Categories</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        <?php echo count(array_filter($categories, function($cat) { return $cat['parent_id'] === null; })); ?>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-folder fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-info shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                        Active Categories</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        <?php echo count(array_filter($categories, function($cat) { return $cat['is_active']; })); ?>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-warning shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                        Total Products</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                        <?php echo array_sum(array_column($categories, 'product_count')); ?>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-box-seam fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">All Categories</h5>
+                </div>
+                <div class="card-body">
+                    <?php if (empty($category_tree)): ?>
+                        <div class="alert alert-info">
+                            <h6>No categories found</h6>
+                            <p class="mb-0">Start by adding your first category using the "Add Category" button.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th width="5%">#</th>
+                                        <th>Category Name</th>
+                                        <th>Parent</th>
+                                        <th>Products</th>
+                                        <th>Subcategories</th>
+                                        <th>Sort Order</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($category_tree as $category): ?>
+                                    <tr>
+                                        <td><?php echo $category['id']; ?></td>
+                                        <td>
+                                            <div style="padding-left: <?php echo $category['level'] * 20; ?>px;">
+                                                <?php if ($category['level'] > 0): ?>
+                                                    <i class="bi bi-arrow-return-right text-muted"></i>
+                                                <?php endif; ?>
+                                                <strong><?php echo htmlspecialchars($category['name']); ?></strong>
+                                                <?php if ($category['image_path']): ?>
+                                                    <i class="bi bi-image text-info ms-1" title="Has image"></i>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php if ($category['description']): ?>
+                                                <small class="text-muted d-block"><?php echo htmlspecialchars($category['description']); ?></small>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($category['parent_name']): ?>
+                                                <span class="badge bg-light text-dark"><?php echo htmlspecialchars($category['parent_name']); ?></span>
+                                            <?php else: ?>
+                                                <span class="badge bg-primary">Main Category</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info"><?php echo $category['product_count']; ?></span>
+                                        </td>
+                                        <td>
+                                            <?php if ($category['subcategory_count'] > 0): ?>
+                                                <span class="badge bg-secondary"><?php echo $category['subcategory_count']; ?> sub</span>
+                                            <?php else: ?>
+                                                <span class="text-muted">-</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark"><?php echo $category['sort_order']; ?></span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-<?php echo $category['is_active'] ? 'success' : 'secondary'; ?>">
+                                                <?php echo $category['is_active'] ? 'Active' : 'Inactive'; ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#editCategoryModal"
+                                                        data-category-id="<?php echo $category['id']; ?>"
+                                                        data-category-name="<?php echo htmlspecialchars($category['name']); ?>"
+                                                        data-category-description="<?php echo htmlspecialchars($category['description']); ?>"
+                                                        data-category-parent="<?php echo $category['parent_id']; ?>"
+                                                        data-category-sort="<?php echo $category['sort_order']; ?>"
+                                                        data-category-active="<?php echo $category['is_active']; ?>">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>
+                                                
+                                                <?php if ($category['subcategory_count'] == 0 && $category['product_count'] == 0): ?>
+                                                <form method="POST" class="d-inline">
+                                                    <input type="hidden" name="category_id" value="<?php echo $category['id']; ?>">
+                                                    <button type="submit" name="delete_category" 
+                                                            class="btn btn-outline-danger"
+                                                            onclick="return confirm('Are you sure you want to delete this category? This action cannot be undone.')">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                    </button>
+                                                </form>
+                                                <?php else: ?>
+                                                <button type="button" class="btn btn-outline-secondary" disabled
+                                                        title="Cannot delete category with subcategories or products">
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Category Usage Summary -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Most Used Categories</h5>
+                        </div>
+                        <div class="card-body">
+                            <?php
+                            $top_categories = array_slice(
+                                array_filter($categories, function($cat) { return $cat['product_count'] > 0; }),
+                                0, 5
+                            );
+                            usort($top_categories, function($a, $b) {
+                                return $b['product_count'] - $a['product_count'];
+                            });
+                            ?>
+                            
+                            <?php if (empty($top_categories)): ?>
+                                <p class="text-muted">No category usage data available</p>
+                            <?php else: ?>
+                                <div class="list-group list-group-flush">
+                                    <?php foreach ($top_categories as $category): ?>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong><?php echo htmlspecialchars($category['name']); ?></strong>
+                                            <?php if ($category['parent_name']): ?>
+                                                <br><small class="text-muted">in <?php echo htmlspecialchars($category['parent_name']); ?></small>
+                                            <?php endif; ?>
+                                        </div>
+                                        <span class="badge bg-primary rounded-pill"><?php echo $category['product_count']; ?> products</span>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Empty Categories</h5>
+                        </div>
+                        <div class="card-body">
+                            <?php
+                            $empty_categories = array_filter($categories, function($cat) { 
+                                return $cat['product_count'] == 0 && $cat['subcategory_count'] == 0; 
+                            });
+                            ?>
+                            
+                            <?php if (empty($empty_categories)): ?>
+                                <p class="text-muted">No empty categories</p>
+                            <?php else: ?>
+                                <div class="list-group list-group-flush">
+                                    <?php foreach (array_slice($empty_categories, 0, 5) as $category): ?>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="text-muted"><?php echo htmlspecialchars($category['name']); ?></span>
+                                            <?php if ($category['parent_name']): ?>
+                                                <br><small class="text-muted">in <?php echo htmlspecialchars($category['parent_name']); ?></small>
+                                            <?php endif; ?>
+                                        </div>
+                                        <span class="badge bg-warning rounded-pill">Empty</span>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                
+                                <?php if (count($empty_categories) > 5): ?>
+                                    <div class="mt-2 text-center">
+                                        <small class="text-muted">
+                                            and <?php echo count($empty_categories) - 5; ?> more empty categories
+                                        </small>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="add_name" class="form-label">Category Name</label>
+                        <input type="text" class="form-control" id="add_name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="add_description" class="form-label">Description</label>
+                        <textarea class="form-control" id="add_description" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="add_parent_id" class="form-label">Parent Category</label>
+                                <select class="form-select" id="add_parent_id" name="parent_id">
+                                    <option value="">No Parent (Main Category)</option>
+                                    <?php foreach ($parent_categories as $parent): ?>
+                                        <option value="<?php echo $parent['id']; ?>"><?php echo htmlspecialchars($parent['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="add_sort_order" class="form-label">Sort Order</label>
+                                <input type="number" class="form-control" id="add_sort_order" name="sort_order" value="0" min="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="add_category" class="btn btn-primary">Add Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Category Modal -->
+<div class="modal fade" id="editCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="category_id" id="edit_category_id">
+                    
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">Category Name</label>
+                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">Description</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_parent_id" class="form-label">Parent Category</label>
+                                <select class="form-select" id="edit_parent_id" name="parent_id">
+                                    <option value="">No Parent (Main Category)</option>
+                                    <?php foreach ($parent_categories as $parent): ?>
+                                        <option value="<?php echo $parent['id']; ?>"><?php echo htmlspecialchars($parent['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_sort_order" class="form-label">Sort Order</label>
+                                <input type="number" class="form-control" id="edit_sort_order" name="sort_order" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="edit_is_active" name="is_active" value="1">
+                        <label class="form-check-label" for="edit_is_active">Active</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button name="update_category" class="btn btn-primary">Update Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Populate edit modal with category data
+document.addEventListener('DOMContentLoaded', function() {
+    var editModal = document.getElementById('editCategoryModal');
+    editModal.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        
+        document.getElementById('edit_category_id').value = button.getAttribute('data-category-id');
+        document.getElementById('edit_name').value = button.getAttribute('data-category-name');
+        document.getElementById('edit_description').value = button.getAttribute('data-category-description');
+        document.getElementById('edit_parent_id').value = button.getAttribute('data-category-parent');
+        document.getElementById('edit_sort_order').value = button.getAttribute('data-category-sort');
+        
+        var isActive = button.getAttribute('data-category-active') === '1';
+        document.getElementById('edit_is_active').checked = isActive;
+    });
+});
+
+// Prevent selecting current category as parent (to avoid circular references)
+document.addEventListener('DOMContentLoaded', function() {
+    var editModal = document.getElementById('editCategoryModal');
+    editModal.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        var categoryId = button.getAttribute('data-category-id');
+        var parentSelect = document.getElementById('edit_parent_id');
+        
+        // Disable option for current category (if it exists in parent list)
+        for (var i = 0; i < parentSelect.options.length; i++) {
+            if (parentSelect.options[i].value === categoryId) {
+                parentSelect.options[i].disabled = true;
+                parentSelect.options[i].textContent += ' (current)';
+            }
+        }
+    });
+    
+    // Reset parent select when modal is hidden
+    editModal.addEventListener('hidden.bs.modal', function () {
+        var parentSelect = document.getElementById('edit_parent_id');
+        for (var i = 0; i < parentSelect.options.length; i++) {
+            parentSelect.options[i].disabled = false;
+            parentSelect.options[i].textContent = parentSelect.options[i].textContent.replace(' (current)', '');
+        }
+    });
+});
+</script>
+
+<?php include '../../includes/footer.php'; ?>
