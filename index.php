@@ -1,5 +1,5 @@
 <?php
-require_once 'classes/database.php';
+require_once 'classes/Database.php';
 require_once 'config/constants.php';
 require_once 'includes/functions.php';
 
