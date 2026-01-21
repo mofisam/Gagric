@@ -10,7 +10,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/../config/constants.php';
-require_once __DIR__ . '/../classes/database.php';
+require_once __DIR__ . '/../classes/Database.php';
 require_once __DIR__ . '/../includes/auth.php';
 // Check if user is logged in
 $is_logged_in = isset($_SESSION['user_id']);
