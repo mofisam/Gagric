@@ -294,3 +294,10 @@
 [2026-01-07 10:31:13] Table 'greenagric.wishlist' doesn't exist
 [2026-01-07 10:33:00] Table 'greenagric.wishlist' doesn't exist
 [2026-01-07 17:47:14] Table 'greenagric.wishlist' doesn't exist
+[2026-01-17 16:09:09] Unknown column 'oi.created_at' in 'where clause'
+[2026-01-17 16:09:38] Unknown column 'oi.created_at' in 'where clause'
+[2026-01-17 16:10:56] Unknown column 'oi.created_at' in 'where clause'
+[2026-01-20 01:08:20] Table 'greenagric.reviews' doesn't exist
+[2026-01-20 10:52:16] Unknown column 'oi.created_at' in 'where clause'
+[2026-01-20 10:52:40] Unknown column 'oi.created_at' in 'where clause'
+[2026-01-20 10:53:25] Table 'greenagric.reviews' doesn't exist
