@@ -1,9 +1,9 @@
 <?php
-require_once '../../includes/header.php';
 require_once '../../includes/auth.php';
+requireSeller();
+require_once '../../includes/header.php';
 require_once '../../includes/functions.php';
 
-requireSeller();
 $db = new Database();
 
 $seller_id = $_SESSION['user_id'];
