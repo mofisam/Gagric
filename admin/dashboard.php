@@ -1,8 +1,9 @@
 <?php
 $page_title = "Admin Dashboard";
 $page_css = 'dashboard.css';
-require_once '../includes/header.php';
 require_once '../includes/auth.php';
+requireAdmin();
+require_once '../includes/header.php';
 require_once '../classes/Database.php';
 
 requireAdmin();

@@ -1,9 +1,9 @@
 <?php
-require_once '../../includes/header.php';
 require_once '../../includes/auth.php';
+requireAdmin();
+require_once '../../includes/header.php';
 require_once '../../classes/Database.php';
 
-requireAdmin();
 
 $db = new Database();
 

@@ -1,10 +1,8 @@
 <?php
-ob_start();
-require_once '../../includes/header.php';
 require_once '../../includes/auth.php';
-require_once '../../classes/Database.php';
-
 requireAdmin();
+require_once '../../includes/header.php';
+require_once '../../classes/Database.php';
 
 $db = new Database();
 
@@ -82,7 +80,6 @@ $cities = $db->fetchAll("
 
 $page_title = "Location Management";
 $page_css = 'dashboard.css';
-ob_end_flush();
 ?>
 
 <div class="container-fluid">

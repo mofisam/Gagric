@@ -1,10 +1,9 @@
 <?php
-ob_start();
-require_once '../../includes/header.php';
 require_once '../../includes/auth.php';
+requireAdmin();
+require_once '../../includes/header.php';
 require_once '../../includes/functions.php';
 require_once '../../includes/validation.php';
-requireAdmin();
 
 $db = new Database();
 
@@ -131,7 +130,6 @@ $stats = [
 ];
 
 $page_title = "Manage Categories";
-ob_end_flush();
 ?>
 
 <div class="container-fluid">

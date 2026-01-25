@@ -1,11 +1,10 @@
 <?php
-ob_start();
-require_once '../../includes/header.php';
 require_once '../../includes/auth.php';
+requireAdmin();
+require_once '../../includes/header.php';
 require_once '../../classes/Database.php';
 require_once '../../classes/Product.php';
 
-requireAdmin();
 
 $db = new Database();
 $productManager = new Product($db);
@@ -92,7 +91,6 @@ $pending_by_category = $db->fetchAll("
 
 $page_title = "Product Approvals";
 $page_css = 'dashboard.css';
-ob_end_flush();
 ?>
 
 <div class="container-fluid">

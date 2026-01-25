@@ -1,6 +1,7 @@
 <?php
-ob_start();
 require_once '../../includes/auth.php';
+requireAdmin();
+require_once '../../includes/header.php';
 require_once '../../classes/Database.php';
 
 requireAdmin();
@@ -100,10 +101,6 @@ if (isset($_POST['update_tracking'])) {
 
 $page_title = "Order Details - " . $order['order_number'];
 $page_css = 'dashboard.css';
-
-// Now include header AFTER setting variables
-require_once '../../includes/header.php';
-ob_flush();
 ?>
 
 <div class="container-fluid">

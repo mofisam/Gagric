@@ -53,11 +53,27 @@ if (isLoggedIn()) {
         } elseif (isset($_POST['remove'])) {
             $product_id = $_POST['remove'];
             $db->query("DELETE FROM cart WHERE user_id = ? AND product_id = ?", [$user_id, $product_id]);
+            
+            // Also remove from localStorage
+            echo '<script>
+                if (typeof cartManager !== "undefined") {
+                    cartManager.removeFromCart(' . $product_id . ');
+                }
+            </script>';
+            
             setFlashMessage('Item removed from cart', 'success');
             header('Location: view-cart.php');
             exit;
         } elseif (isset($_POST['clear'])) {
             $db->query("DELETE FROM cart WHERE user_id = ?", [$user_id]);
+            
+            // Also clear localStorage
+            echo '<script>
+                if (typeof cartManager !== "undefined") {
+                    cartManager.clearCart();
+                }
+            </script>';
+            
             setFlashMessage('Cart cleared successfully', 'success');
             header('Location: view-cart.php');
             exit;
@@ -233,19 +249,6 @@ include '../../includes/header.php';
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Promo Code -->
-                    <!--
-                    <div class="card mt-3">
-                        <div class="card-body">
-                            <h6 class="card-title">Have a promo code?</h6>
-                            <form class="input-group">
-                                <input type="text" class="form-control" placeholder="Enter code">
-                                <button class="btn btn-outline-success" type="button">Apply</button>
-                            </form>
-                        </div>
-                    </div>
-                    -->
                 </div>
             </div>
         <?php endif; ?>
@@ -278,7 +281,7 @@ include '../../includes/header.php';
                     </a>
                     <div>
                         <button type="button" id="guest-clear-cart" class="btn btn-outline-danger me-2">
-                            <i class="bi bi-trash me-1"></i> Clear Cart1
+                            <i class="bi bi-trash me-1"></i> Clear Cart
                         </button>
                         <a href="../../auth/login.php?redirect=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>" 
                            class="btn btn-success">
@@ -318,8 +321,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('clear-cart')?.addEventListener('click', function() {
         if (confirm('Are you sure you want to clear your cart?')) {
             clearCart();
-            cartManager.clearCart();
-            displayGuestCart();
         }
     });
     
@@ -330,6 +331,11 @@ document.addEventListener('DOMContentLoaded', function() {
             displayGuestCart();
         }
     });
+    
+    // Add sync button if user just logged in with localStorage items
+    <?php if (isLoggedIn() && isset($_GET['sync_cart']) && $_GET['sync_cart'] == '1'): ?>
+        syncCartWithDatabase();
+    <?php endif; ?>
 });
 
 function displayGuestCart() {
@@ -375,8 +381,7 @@ function displayGuestCart() {
                 <h6 class="mb-0">₦${item.productPrice.toLocaleString('en-NG')}</h6>
             </td>
             <td>
-       
-            <div class="input-group" style="width: 120px;">
+                <div class="input-group" style="width: 120px;">
                     <input type="number" class="form-control guest-quantity" 
                            value="${item.quantity}" min="1"
                            data-product-id="${item.productId}">
@@ -417,7 +422,7 @@ function displayGuestCart() {
     const shipping = 500;
     const total = subtotal + shipping;
     
-    // Update summary section if it exists
+    // Update summary section
     const summaryDiv = document.querySelector('.col-lg-4');
     if (summaryDiv) {
         summaryDiv.innerHTML = `
@@ -458,23 +463,17 @@ function displayGuestCart() {
                     </div>
                 </div>
             </div>
-            
-            <div class="card mt-3">
-                <div class="card-body">
-                    <h6 class="card-title">Have a promo code?</h6>
-                    <form class="input-group">
-                        <input type="text" class="form-control" placeholder="Enter code">
-                        <button class="btn btn-outline-success" type="button">Apply</button>
-                    </form>
-                </div>
-            </div>
         `;
     }
 }
 
 function removeFromCart(productId) {
     <?php if (isLoggedIn()): ?>
-        // For logged-in users, submit form
+        // Check if item exists in localStorage (for recently logged-in users)
+        const localStorageCart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+        const itemInLocalStorage = localStorageCart.some(item => item.productId == productId);
+        
+        // Always try to delete from database first
         const form = document.getElementById('cart-form');
         const input = document.createElement('input');
         input.type = 'hidden';
@@ -482,6 +481,11 @@ function removeFromCart(productId) {
         input.value = productId;
         form.appendChild(input);
         form.submit();
+        
+        // Also remove from localStorage if it exists there
+        if (itemInLocalStorage && typeof cartManager !== 'undefined') {
+            cartManager.removeFromCart(productId);
+        }
     <?php else: ?>
         // For guests, use cart manager
         cartManager.removeFromCart(productId);
@@ -507,19 +511,57 @@ function updateQuantity(productId, quantity) {
 
 function clearCart() {
     <?php if (isLoggedIn()): ?>
-        // For logged-in users, submit form
-        const form = document.getElementById('cart-form');
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'clear';
-        input.value = '1';
-        form.appendChild(input);
-        form.submit();
+        if (confirm('Are you sure you want to clear your cart?')) {
+            // Clear from database via form submission
+            const form = document.getElementById('cart-form');
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'clear';
+            input.value = '1';
+            form.appendChild(input);
+            form.submit();
+            
+            // Also clear localStorage
+            if (typeof cartManager !== 'undefined') {
+                cartManager.clearCart();
+            }
+        }
     <?php else: ?>
         // For guests, use cart manager
         cartManager.clearCart();
         displayGuestCart();
     <?php endif; ?>
+}
+
+// Function to sync localStorage cart with database after login
+async function syncCartWithDatabase() {
+    const localCart = cartManager.getCart();
+    if (localCart.length === 0) return;
+    
+    try {
+        const response = await fetch('../../api/cart/sync.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                cart: localCart
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Clear localStorage after successful sync
+            cartManager.clearCart();
+            // Reload to show synced cart
+            window.location.href = window.location.pathname;
+        } else {
+            console.error('Failed to sync cart:', data.error);
+        }
+    } catch (error) {
+        console.error('Error syncing cart:', error);
+    }
 }
 </script>
 
