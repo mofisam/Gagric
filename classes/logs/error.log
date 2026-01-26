@@ -1,0 +1,18 @@
+[2026-01-25 22:56:30] Unknown column 'oi.created_at' in 'where clause'
+[2026-01-26 10:10:02] Unknown column 'oi.created_at' in 'where clause'
+[2026-01-26 10:18:02] Unknown column 'oi.created_at' in 'where clause'
+[2026-01-26 10:46:36] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 10:47:18] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 10:47:35] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 10:49:06] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 10:50:00] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 10:50:11] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 11:11:48] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 11:27:13] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 11:27:33] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 11:27:38] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 11:27:56] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 11:28:05] Table 'greenagric.reviews' doesn't exist
+[2026-01-26 11:31:34] Unknown column 'u.phone' in 'where clause'
+[2026-01-26 11:33:02] Unknown column 'u.phone' in 'where clause'
+[2026-01-26 15:16:05] Table 'greenagric.wishlist' doesn't exist

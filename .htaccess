@@ -48,8 +48,9 @@ RewriteRule ^api/(.*)$ api/$1 [L]
 # =========================
 # Custom error pages
 # =========================
-ErrorDocument 404 /errors/404.php
-ErrorDocument 500 /errors/500.php
+ErrorDocument 404 http://clinicalphysiologyacademy.com/404.php
+ErrorDocument 403 http://clinicalphysiologyacademy.com/403.php
+ErrorDocument 500 http://clinicalphysiologyacademy.com/500.php
 
 # =========================
 # Compression
