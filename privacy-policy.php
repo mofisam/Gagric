@@ -2,14 +2,14 @@
 require_once 'includes/header.php';
 require_once 'includes/functions.php';
 
-$page_title = "AgriMarketplace Policies";
+$page_title = "Green Agric Policies";
 $page_css = 'style.css';
 include 'includes/header.php';
 ?>
 
 <div class="container py-4">
     <!-- Page Header -->
-    <div class="text-center mb-5">
+    <div class="text-center">
         <h1 class="display-5 fw-bold text-success mb-3">AgriMarketplace Policies</h1>
         <p class="text-muted">Updated: February 1st, 2026</p>
     </div>
