@@ -163,7 +163,7 @@ include 'includes/header.php';
                                             <li class="mb-1"><i class="bi bi-truck text-warning me-2"></i> Arrange fulfillment</li>
                                             <li><i class="bi bi-cash-stack text-warning me-2"></i> Receive payouts subject to verification and delivery confirmation</li>
                                         </ul>
-                                        <div class="alert alert-warning mt-3 mb-0 p-2">
+                                        <div class="bg-warning p-3 rounded-3 bg-opacity-25 mt-3 mb-0 p-2">
                                             <small><i class="bi bi-info-circle me-1"></i> Seller accounts are subject to additional verification and approval.</small>
                                         </div>
                                     </div>
@@ -187,7 +187,7 @@ include 'includes/header.php';
                             <li class="mb-2"><i class="bi bi-shield-lock text-primary me-2"></i> You are responsible for all activity conducted under your account</li>
                             <li class="mb-2"><i class="bi bi-shield-lock text-primary me-2"></i> You must notify Green Agric immediately of any unauthorized use</li>
                         </ul>
-                        <div class="alert alert-danger mt-3 mb-0">
+                        <div class="bg-danger p-3 rounded-3 bg-opacity-25  mt-3 mb-0">
                             <i class="bi bi-exclamation-triangle-fill me-2"></i>
                             Green Agric is not liable for losses caused by compromised accounts due to user negligence.
                         </div>
@@ -210,7 +210,7 @@ include 'includes/header.php';
                             <li class="mb-2"><i class="bi bi-file-earmark-text-fill text-info me-2"></i> Sell only permitted agricultural goods</li>
                             <li><i class="bi bi-file-earmark-text-fill text-info me-2"></i> Comply with Green Agric policies and applicable laws</li>
                         </ul>
-                        <div class="alert alert-warning mt-3 mb-0">
+                        <div class="bg-warning p-3 rounded-3 bg-opacity-25 mt-3 mb-0">
                             <i class="bi bi-exclamation-triangle-fill me-2"></i>
                             Green Agric may suspend, review, or terminate seller accounts that fail verification or violate platform rules.
                         </div>
@@ -231,7 +231,7 @@ include 'includes/header.php';
                             <li class="mb-2"><i class="bi bi-credit-card-fill text-success me-2"></i> Buyer payments may be temporarily held pending order fulfillment</li>
                             <li><i class="bi bi-credit-card-fill text-success me-2"></i> Seller payouts are released after delivery confirmation or expiration of the dispute window</li>
                         </ul>
-                        <div class="alert alert-warning mt-3 mb-0">
+                        <div class="bg-warning p-3 rounded-3 bg-opacity-25 mt-3 mb-0">
                             <i class="bi bi-shield-exclamation me-2"></i>
                             Green Agric reserves the right to withhold or reverse payouts in cases of fraud, disputes, or policy violations.
                         </div>
@@ -252,7 +252,7 @@ include 'includes/header.php';
                             <li class="mb-2"><i class="bi bi-box-seam text-primary me-2"></i> Green Agric is not a fulfillment center and does not physically handle goods</li>
                             <li><i class="bi bi-box-seam text-primary me-2"></i> Delivery timelines may vary depending on seller and logistics provider</li>
                         </ul>
-                        <div class="alert alert-info mt-3 mb-0">
+                        <div class="bg-info p-3 rounded-3 bg-opacity-25  mt-3 mb-0">
                             <i class="bi bi-info-circle-fill me-2"></i>
                             Buyers acknowledge that agricultural produce may vary naturally in size, color, or appearance.
                         </div>
@@ -271,19 +271,19 @@ include 'includes/header.php';
                         <p>Refunds and disputes are governed by Green Agric's:</p>
                         <div class="row">
                             <div class="col-md-6 mb-2">
-                                <div class="alert alert-light border">
+                                <div class="bg-light p-3 rounded-3 bg-opacity-25  border">
                                     <i class="bi bi-arrow-counterclockwise text-success me-2"></i>
                                     <strong>Refund Policy</strong>
                                 </div>
                             </div>
                             <div class="col-md-6 mb-2">
-                                <div class="alert alert-light border">
+                                <div class="bg-light p-3 rounded-3 bg-opacity-25  border">
                                     <i class="bi bi-people text-success me-2"></i>
                                     <strong>Dispute Resolution Policy</strong>
                                 </div>
                             </div>
                         </div>
-                        <div class="alert alert-warning mt-2 mb-0">
+                        <div class="bg-warning p-3 rounded-3 bg-opacity-25  mt-2 mb-0">
                             <i class="bi bi-file-earmark-check-fill me-2"></i>
                             By registering an account, you agree to be bound by the outcomes of Green Agric's dispute resolution process.
                         </div>
@@ -334,7 +334,7 @@ include 'includes/header.php';
                             <li class="mb-2"><i class="bi bi-slash-circle-fill text-danger me-2"></i> Fraud or illegal activity is suspected</li>
                             <li><i class="bi bi-slash-circle-fill text-danger me-2"></i> The account poses risk to the Platform or payment partners</li>
                         </ul>
-                        <div class="alert alert-danger mt-3 mb-0">
+                        <div class="bg-danger p-3 rounded-3 bg-opacity-25  mt-3 mb-0">
                             <i class="bi bi-exclamation-octagon-fill me-2"></i>
                             Outstanding funds may be withheld pending investigation.
                         </div>
@@ -356,7 +356,7 @@ include 'includes/header.php';
                             <li class="mb-2"><i class="bi bi-shield-slash text-secondary me-2"></i> Does not guarantee product quality, delivery, or seller performance</li>
                             <li class="mb-2"><i class="bi bi-shield-slash text-secondary me-2"></i> Is not liable for losses arising from third-party seller actions</li>
                         </ul>
-                        <div class="alert alert-secondary mt-3 mb-0">
+                        <div class="bg-secondary p-3 rounded-3 bg-opacity-25 mt-3 mb-0">
                             <i class="bi bi-file-text me-2"></i>
                             To the fullest extent permitted by law, Green Agric disclaims liability for indirect or consequential damages.
                         </div>
@@ -372,7 +372,7 @@ include 'includes/header.php';
                         <span class="badge bg-success">Section 12</span>
                     </div>
                     <div class="card-body">
-                        <div class="alert alert-info">
+                        <div class="bg-info p-3 rounded-3 bg-opacity-25 ">
                             <i class="bi bi-shield-check me-2"></i>
                             By registering an account, you consent to the collection and processing of personal data in accordance with Green Agric's Privacy Policy and the Nigeria Data Protection Regulation (NDPR).
                         </div>
@@ -388,7 +388,7 @@ include 'includes/header.php';
                         <span class="badge bg-success">Section 13</span>
                     </div>
                     <div class="card-body">
-                        <div class="alert alert-warning">
+                        <div class="bg-warning p-3 rounded-3 bg-opacity-25 ">
                             <i class="bi bi-arrow-clockwise me-2"></i>
                             Green Agric may update these Terms from time to time. Continued use of the Platform constitutes acceptance of the revised Terms.
                         </div>
@@ -421,9 +421,9 @@ include 'includes/header.php';
                     </div>
                     <div class="card-body text-center">
                         <p>For questions regarding these Terms, contact:</p>
-                        <div class="alert alert-success d-inline-block">
+                        <div class="bg-success p-3 rounded-3 bg-opacity-25 d-inline-block">
                             <i class="bi bi-envelope-fill me-2"></i>
-                            <strong>Email:</strong> support@greenagric.org
+                            <strong>Email:</strong> support@greenagric.shop
                         </div>
                     </div>
                 </div>

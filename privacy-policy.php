@@ -10,7 +10,7 @@ include 'includes/header.php';
 <div class="container py-4">
     <!-- Page Header -->
     <div class="text-center">
-        <h1 class="display-5 fw-bold text-success mb-3">AgriMarketplace Policies</h1>
+        <h1 class="display-5 fw-bold text-success mb-3">Green Agric Policies</h1>
         <p class="text-muted">Updated: February 1st, 2026</p>
     </div>
 
