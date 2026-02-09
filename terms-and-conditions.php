@@ -421,7 +421,7 @@ include 'includes/header.php';
                     </div>
                     <div class="card-body text-center">
                         <p>For questions regarding these Terms, contact:</p>
-                        <div class="bg-success p-3 rounded-3 bg-opacity-25 d-inline-block">
+                        <div class="bg-success text-success p-3 rounded-3 bg-opacity-25 d-inline-block">
                             <i class="bi bi-envelope-fill me-2"></i>
                             <strong>Email:</strong> support@greenagric.shop
                         </div>

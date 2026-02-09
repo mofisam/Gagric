@@ -67,7 +67,7 @@ $organic_products = $db->fetchAll("
 ");
 ?>
 <?php 
-$page_title = "AgriMarketplace - Fresh Agricultural Products Online Store";
+$page_title = "Green Agric LTD - Fresh Agricultural Products Online Store";
 $page_css = 'style.css';
 include 'includes/header.php'; 
 ?>
@@ -479,14 +479,14 @@ include 'includes/header.php';
         <div class="row align-items-center">
             <div class="col-lg-6 mb-4 mb-lg-0">
                 <h2 class="display-5 fw-bold mb-3">Ready to Sell Your Products?</h2>
-                <p class="lead mb-4">Join AgriMarketplace and reach thousands of customers across Nigeria. No middlemen, higher profits.</p>
+                <p class="lead mb-4">Join Green Agric LTD and reach thousands of customers across Nigeria. No middlemen, higher profits.</p>
                 <a href="auth/register.php?role=seller" class="btn btn-light btn-lg px-5 py-3">
                     <i class="bi bi-shop me-2"></i> Become a Seller
                 </a>
             </div>
             <div class="col-lg-6">
                 <div class="bg-white rounded-3 p-5 text-dark">
-                    <h3 class="mb-4">Why Sell on AgriMarketplace?</h3>
+                    <h3 class="mb-4">Why Sell on Green Agric LTD?</h3>
                     <ul class="list-unstyled">
                         <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Zero listing fees</li>
                         <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Nationwide customer base</li>
