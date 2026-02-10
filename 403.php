@@ -51,7 +51,7 @@ include 'includes/header.php';
                         <h5 class="mb-3">Need Help?</h5>
                         <p class="text-muted small mb-0">
                             If you believe this is an error, please contact our support team.
-                            <a href="mailto:support@agrimarketplace.ng" class="text-success">support@agrimarketplace.ng</a>
+                            <a href="mailto:support@greenagric.shop" class="text-success">support@greenagric.shop</a>
                         </p>
                     </div>
                 </div>

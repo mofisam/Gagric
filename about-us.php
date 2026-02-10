@@ -157,7 +157,7 @@ include 'includes/header.php';
                             <div class="team-photo mb-3">
                                 <img src="assets/images/team-placeholder.jpg" alt="CEO" class="img-fluid rounded-circle" style="width: 150px; height: 150px; object-fit: cover;">
                             </div>
-                            <h4 class="card-title">Chinedu Okoro</h4>
+                            <h4 class="card-title">Taiwo Tosin</h4>
                             <p class="text-muted">Chief Executive Officer</p>
                             <p class="card-text">Former agricultural consultant with 15+ years experience in Nigerian agriculture.</p>
                         </div>
@@ -170,7 +170,7 @@ include 'includes/header.php';
                             <div class="team-photo mb-3">
                                 <img src="assets/images/team-placeholder.jpg" alt="CTO" class="img-fluid rounded-circle" style="width: 150px; height: 150px; object-fit: cover;">
                             </div>
-                            <h4 class="card-title">Amina Yusuf</h4>
+                            <h4 class="card-title">A</h4>
                             <p class="text-muted">Chief Technology Officer</p>
                             <p class="card-text">Tech entrepreneur with expertise in e-commerce and fintech solutions.</p>
                         </div>
@@ -183,7 +183,7 @@ include 'includes/header.php';
                             <div class="team-photo mb-3">
                                 <img src="assets/images/team-placeholder.jpg" alt="COO" class="img-fluid rounded-circle" style="width: 150px; height: 150px; object-fit: cover;">
                             </div>
-                            <h4 class="card-title">Femi Adebayo</h4>
+                            <h4 class="card-title">b</h4>
                             <p class="text-muted">Chief Operations Officer</p>
                             <p class="card-text">Operations expert with background in logistics and supply chain management.</p>
                         </div>

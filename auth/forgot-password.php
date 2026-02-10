@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="text-center mt-4">
                     <p class="text-muted small">
                         Need help? Contact our support team:
-                        <a href="mailto:support@agrimarketplace.ng" class="text-success">support@greenagric.shop</a>
+                        <a href="mailto:support@greenagric.shop" class="text-success">support@greenagric.shop</a>
                     </p>
                 </div>
             </div>

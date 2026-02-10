@@ -106,8 +106,8 @@ include 'includes/header.php';
                                     <i class="bi bi-envelope text-success me-2"></i>
                                     <strong>Email:</strong>
                                 </p>
-                                <a href="mailto:support@agrimarketplace.ng" class="text-decoration-none">
-                                    support@agrimarketplace.ng
+                                <a href="mailto:support@greenagric.shop" class="text-decoration-none">
+                                    support@greenagric.shop
                                 </a>
                             </div>
                             <div class="col-md-6">
