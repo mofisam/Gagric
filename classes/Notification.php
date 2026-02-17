@@ -7,7 +7,7 @@ class Notification {
     }
 
     public function sendToUser($userId, $title, $message, $type = 'info') {
-        // In production, integrate with email/SMS services
+        //  integrate with email/SMS services
         // For now, log to database or file
         
         error_log("Notification to User $userId: $title - $message");

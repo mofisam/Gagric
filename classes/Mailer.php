@@ -466,5 +466,78 @@ class Mailer {
             EMAIL_TEMPLATE_HTML
         );
     }
+
+    /**
+     * Send email verification link
+     */
+    public function sendEmailVerification($userEmail, $userName, $verificationLink) {
+        try {
+            $this->mail->clearAddresses();
+            $this->mail->clearCCs();
+            $this->mail->clearBCCs();
+            
+            $this->mail->addAddress($userEmail, $userName);
+            
+            $this->mail->Subject = 'Verify Your Email - Green Agric LTD';
+            
+            $content = $this->getEmailVerificationTemplate($userName, $verificationLink);
+            $this->mail->Body = $content;
+            $this->mail->AltBody = $this->getPlainTextContent($content);
+            
+            return $this->mail->send();
+            
+        } catch (Exception $e) {
+            error_log("Failed to send email verification: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Template for email verification
+     */
+    private function getEmailVerificationTemplate($userName, $verificationLink) {
+        $content = '
+        <h2>🔐 Verify Your Email Address</h2>
+        <p>Dear <strong>' . htmlspecialchars($userName) . '</strong>,</p>
+        
+        <p>Thank you for registering with Green Agric LTD! Please verify your email address to complete your registration.</p>
+        
+        <div class="message-box" style="text-align: center;">
+            <h3>Verify Your Email</h3>
+            <p>Click the button below to verify your email address:</p>
+            <p style="text-align: center; margin: 30px 0;">
+                <a href="' . $verificationLink . '" class="btn-primary" style="font-size: 16px; padding: 12px 30px;">Verify Email Address</a>
+            </p>
+            <p><strong>Or copy this link:</strong><br>
+            <small>' . $verificationLink . '</small></p>
+        </div>
+        
+        <div class="highlight">
+            <h3>⚠️ Important Information</h3>
+            <ul style="padding-left: 20px;">
+                <li>This verification link expires in <strong>24 hours</strong></li>
+                <li>If you didn\'t create an account, please ignore this email</li>
+                <li>Verify your email to access all features</li>
+            </ul>
+        </div>
+        
+        <p>Once verified, you can:</p>
+        <ul style="padding-left: 20px;">
+            <li>Start buying agricultural products</li>
+            <li>List your products for sale (as a seller)</li>
+            <li>Track your orders</li>
+            <li>Receive order notifications</li>
+        </ul>
+        
+        <p>Best regards,<br>
+        <strong>The Green Agric LTD Team</strong></p>
+        ';
+        
+        return str_replace(
+            ['{content}', '{subject}', '{unsubscribe_link}'],
+            [$content, 'Verify Your Email', BASE_URL . '/unsubscribe'],
+            EMAIL_TEMPLATE_HTML
+        );
+    }
 }
 ?>

@@ -1,63 +1,97 @@
+# Enable rewrite engine
 RewriteEngine On
+
+# =========================
+# PREVENT DIRECTORY LISTING (Fixes your main concern)
+# =========================
+Options -Indexes
 
 # =========================
 # Security Headers
 # =========================
 <IfModule mod_headers.c>
-    Header always set X-Content-Type-Options "nosniff"
-    Header always set X-Frame-Options "SAMEORIGIN"
-    Header always set X-XSS-Protection "1; mode=block"
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set X-XSS-Protection "1; mode=block"
 </IfModule>
 
 # =========================
-# Block access to hidden files (.env, .git, etc.)
+# Block access to hidden files (e.g. .env, .git, .htaccess)
 # =========================
 <FilesMatch "^\.">
     Require all denied
 </FilesMatch>
 
 # =========================
-# Block sensitive files
+# Block access to sensitive files
 # =========================
-<FilesMatch "(composer\.json|composer\.lock|package\.json|\.htaccess)">
+<FilesMatch "^(config\.php|db\.php|database\.php|\.env|composer\.json|package\.json|README\.md|CHANGELOG\.md)$">
     Require all denied
 </FilesMatch>
 
 # =========================
-# Force HTTPS (ENABLE after SSL works)
+# Block access to backup files and logs
 # =========================
-RewriteCond %{HTTPS} !=on
-RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+<FilesMatch "\.(bak|backup|log|sql|old|swp|~|tmp|temp)$">
+    Require all denied
+</FilesMatch>
 
 # =========================
-# Remove .php extension
+# Protect include directories from direct access
+# =========================
+RewriteRule ^(includes|vendor|logs|temp|cache|uploads)/(.*)$ - [F,L]
+
+# =========================
+# PHP files handling
+# =========================
+<FilesMatch "\.php$">
+    Require all granted
+</FilesMatch>
+
+# =========================
+# Force HTTPS (uncomment after SSL is working)
+# =========================
+# RewriteCond %{HTTPS} !=on
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# =========================
+# Pretty URLs (remove .php extension)
 # =========================
 RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^(.+)$ $1.php [L]
 
 # =========================
-# Prevent direct access to .php files in URL
+# API routing
 # =========================
-RewriteCond %{THE_REQUEST} \s/+(.+)\.php[\s?]
-RewriteRule ^ /%1 [R=301,L]
+RewriteRule ^api/(.*)$ api/$1 [L,QSA]
 
 # =========================
-# Custom error pages (use relative path)
+# Custom error pages
 # =========================
-ErrorDocument 404 /404.php
+ErrorDocument 400 /400.php
+ErrorDocument 401 /401.php
 ErrorDocument 403 /403.php
+ErrorDocument 404 /404.php
 ErrorDocument 500 /500.php
+ErrorDocument 503 /503.php
 
 # =========================
 # Compression
 # =========================
 <IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css \
-    application/xml application/xhtml+xml application/rss+xml \
-    application/javascript application/json
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
 </IfModule>
 
 # =========================
@@ -65,15 +99,85 @@ ErrorDocument 500 /500.php
 # =========================
 <IfModule mod_expires.c>
     ExpiresActive On
-
+    
+    # Default expiration
+    ExpiresDefault "access plus 2 days"
+    
+    # Images
     ExpiresByType image/jpeg "access plus 1 month"
-    ExpiresByType image/png  "access plus 1 month"
-    ExpiresByType image/gif  "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
     ExpiresByType image/webp "access plus 1 month"
-    ExpiresByType text/css   "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
-    ExpiresByType application/json "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
     ExpiresByType image/x-icon "access plus 1 year"
+    
+    # CSS, JavaScript
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    
+    # Fonts
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/otf "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    
+    # PDF
+    ExpiresByType application/pdf "access plus 1 month"
+</IfModule>
 
-    ExpiresDefault "access plus 7 days"
+# =========================
+# Disable server signature
+# =========================
+ServerSignature Off
+
+# =========================
+# Limit file upload size (optional - uncomment if needed)
+# =========================
+# php_value upload_max_filesize 10M
+# php_value post_max_size 10M
+# php_value max_execution_time 300
+# php_value max_input_time 300
+
+# =========================
+# Prevent hotlinking (optional - uncomment and update domain)
+# =========================
+# RewriteCond %{HTTP_REFERER} !^$
+# RewriteCond %{HTTP_REFERER} !^http(s)?://(www\.)?yourdomain\.com [NC]
+# RewriteRule \.(jpg|jpeg|png|gif|webp|svg)$ - [F,L]
+
+# =========================
+# Block access to XML-RPC (WordPress protection)
+# =========================
+<Files xmlrpc.php>
+    Require all denied
+</Files>
+
+# =========================
+# Protect wp-config if using WordPress
+# =========================
+<Files wp-config.php>
+    Require all denied
+</Files>
+
+# =========================
+# Directory-specific protections
+# =========================
+<IfModule mod_autoindex.c>
+    # Disable directory indexes
+    Options -Indexes
+</IfModule>
+
+# =========================
+# Character set
+# =========================
+AddDefaultCharset UTF-8
+
+# =========================
+# MIME types
+# =========================
+<IfModule mod_mime.c>
+    AddType application/javascript .js
+    AddType text/css .css
+    AddType image/webp .webp
 </IfModule>
