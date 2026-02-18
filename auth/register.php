@@ -16,6 +16,13 @@ $error = '';
 $success = '';
 $email_verification_sent = false;
 
+function generateUUID() {
+    $data = random_bytes(16);
+    $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
+    $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
+    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $first_name = trim($_POST['first_name']);
     $last_name = trim($_POST['last_name']);
@@ -69,8 +76,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $verification_token = bin2hex(random_bytes(32));
             $verification_expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
             
+            $uuid = generateUUID();
+
             // Prepare user data with verification token
             $userData = [
+                'uuid' => $uuid,
                 'first_name' => $first_name,
                 'last_name' => $last_name,
                 'email' => $email,
