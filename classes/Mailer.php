@@ -19,7 +19,8 @@ class Mailer {
     private $mail;
     private $debug_mode = false;
     
-    public function __construct($debug = false) {
+    //change the "$debug = true" to "$debug = false"  after debugging ()
+    public function __construct($debug = true) {
         $this->debug_mode = $debug;
         $this->mail = new PHPMailer(true);
         
@@ -277,8 +278,8 @@ class Mailer {
         <div class="info-box">
             <h3>📊 Submission Details</h3>
             <p><strong>Submitted:</strong> ' . date('F j, Y \a\t g:i A') . '</p>
-            <p><strong>IP Address:</strong> ' . ($contactData['ip_address'] ?? 'N/A') . '</p>
-            <p><strong>User Agent:</strong> ' . ($contactData['user_agent'] ?? 'N/A') . '</p>
+            <p><strong>IP Address:</strong> ' . htmlspecialchars($contactData['ip_address'] ?? 'N/A') . '</p>
+            <p><strong>User Agent:</strong> ' . htmlspecialchars($contactData['user_agent'] ?? 'N/A') . '</p>
         </div>
         
         <div class="highlight">
