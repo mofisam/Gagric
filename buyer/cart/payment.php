@@ -340,7 +340,7 @@ include '../../includes/header.php';
                         <h5 class="mb-0">Need Help?</h5>
                     </div>
                     <div class="card-body">
-                        <p class="mb-2"><i class="bi bi-envelope me-2"></i> <strong>Email:</strong> support@greenagric.ng</p>
+                        <p class="mb-2"><i class="bi bi-envelope me-2"></i> <strong>Email:</strong> support@greenagric.shop</p>
                         <p class="mb-2"><i class="bi bi-telephone me-2"></i> <strong>Phone:</strong> +234 703 041 9150</p>
                         <p class="mb-0"><i class="bi bi-clock me-2"></i> <strong>Hours:</strong> Mon-Fri, 9AM-6PM</p>
                     </div>

@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="alert alert-danger">
                 <i class="bi bi-exclamation-triangle me-2"></i>
                 <strong>Oops! Something went wrong.</strong><br>
-                Please try again or contact us directly at support@greenagric.ng
+                Please try again or contact us directly at support@greenagric.shop
                 <div class="mt-2">
                     <small>Error: ' . htmlspecialchars($e->getMessage()) . '</small>
                 </div>
@@ -341,7 +341,7 @@ include 'includes/header.php';
                                 <strong>General Inquiries:</strong><br>
                                 info@greenagric.ng<br>
                                 <strong>Support:</strong><br>
-                                support@greenagric.ng
+                                support@greenagric.shop
                             </p>
                         </div>
                     </div>

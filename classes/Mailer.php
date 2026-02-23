@@ -18,26 +18,34 @@ require_once __DIR__ . '/../config/constants.php';
 class Mailer {
     private $mail;
     private $debug_mode = false;
+    private $last_error = '';
     
-    //change the "$debug = true" to "$debug = false"  after debugging ()
-    public function __construct($debug = true) {
+    // Changed default debug to false
+    public function __construct($debug = false) {
         $this->debug_mode = $debug;
         $this->mail = new PHPMailer(true);
         
         try {
-            // Enable debug if needed
-            if ($this->debug_mode) {
-                $this->mail->SMTPDebug = SMTP::DEBUG_SERVER;
-            }
-            
             // Server settings
             $this->mail->isSMTP();
             $this->mail->Host       = SMTP_HOST;
-            $this->mail->SMTPAuth   = true;
+            $this->mail->SMTPAuth   = SMTP_AUTH; // Use constant
             $this->mail->Username   = SMTP_USERNAME;
             $this->mail->Password   = SMTP_PASSWORD;
             $this->mail->SMTPSecure = SMTP_SECURE;
             $this->mail->Port       = SMTP_PORT;
+            
+            // Add timeout settings (helps with "try again later" errors)
+            $this->mail->Timeout = 30; // seconds
+            $this->mail->SMTPKeepAlive = true;
+            
+            // Enable debug if needed
+            if ($this->debug_mode) {
+                $this->mail->SMTPDebug = SMTP::DEBUG_SERVER;
+                $this->mail->Debugoutput = function($str, $level) {
+                    error_log("SMTP Debug level $level: $str");
+                };
+            }
             
             // Sender settings
             $this->mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
@@ -45,13 +53,36 @@ class Mailer {
             
             // Set charset
             $this->mail->CharSet = 'UTF-8';
+            $this->mail->Encoding = 'base64';
             
             // Add reply-to
             $this->mail->addReplyTo(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
             
         } catch (Exception $e) {
+            $this->last_error = $e->getMessage();
             error_log("Mailer Initialization Error: " . $e->getMessage());
-            throw $e;
+            // Don't throw exception, just log it
+        }
+    }
+    
+    /**
+     * Get last error message
+     */
+    public function getLastError() {
+        return $this->last_error;
+    }
+    
+    /**
+     * Test SMTP connection
+     */
+    public function testConnection() {
+        try {
+            $this->mail->smtpConnect();
+            $this->mail->smtpClose();
+            return true;
+        } catch (Exception $e) {
+            $this->last_error = $e->getMessage();
+            return false;
         }
     }
     
@@ -60,16 +91,10 @@ class Mailer {
      */
     public function sendContactToAdmin($contactData) {
         try {
-            // Clear previous recipients
-            $this->mail->clearAddresses();
-            $this->mail->clearCCs();
-            $this->mail->clearBCCs();
+            $this->resetMailer();
             
-            // Recipient (admin)
-            $this->mail->addAddress('support@greenagric.ng', 'Green Agric Support');
-            
-            // Optional: Add CC to other admins
-            // $this->mail->addCC('admin@greenagric.ng', 'Administrator');
+            // Use constant for admin email
+            $this->mail->addAddress(ADMIN_EMAIL, ADMIN_NAME);
             
             // Subject
             $this->mail->Subject = EMAIL_SUBJECT_CONTACT_ADMIN . ': ' . $contactData['subject'];
@@ -79,7 +104,7 @@ class Mailer {
             $this->mail->Body = $content;
             
             // Plain text alternative
-            $this->mail->AltBody = $this->getPlainTextContent($content);
+            $this->mail->AltBody = $this->getPlainTextContent($contactData['message']);
             
             // Send email
             $result = $this->mail->send();
@@ -91,6 +116,7 @@ class Mailer {
             return $result;
             
         } catch (Exception $e) {
+            $this->last_error = $e->getMessage();
             error_log("Failed to send admin email: " . $e->getMessage());
             return false;
         }
@@ -101,12 +127,13 @@ class Mailer {
      */
     public function sendContactToUser($contactData) {
         try {
-            // Clear previous recipients
-            $this->mail->clearAddresses();
-            $this->mail->clearCCs();
-            $this->mail->clearBCCs();
+            $this->resetMailer();
             
-            // Recipient (user)
+            // Validate email
+            if (!filter_var($contactData['email'], FILTER_VALIDATE_EMAIL)) {
+                throw new Exception("Invalid email address: " . $contactData['email']);
+            }
+            
             $this->mail->addAddress($contactData['email'], $contactData['full_name']);
             
             // Subject
@@ -117,7 +144,7 @@ class Mailer {
             $this->mail->Body = $content;
             
             // Plain text alternative
-            $this->mail->AltBody = $this->getPlainTextContent($content);
+            $this->mail->AltBody = "Thank you for contacting us. We'll respond within 24 hours.";
             
             // Send email
             $result = $this->mail->send();
@@ -129,6 +156,7 @@ class Mailer {
             return $result;
             
         } catch (Exception $e) {
+            $this->last_error = $e->getMessage();
             error_log("Failed to send user email: " . $e->getMessage());
             return false;
         }
@@ -139,9 +167,7 @@ class Mailer {
      */
     public function sendOrderConfirmation($orderData, $userData) {
         try {
-            $this->mail->clearAddresses();
-            $this->mail->clearCCs();
-            $this->mail->clearBCCs();
+            $this->resetMailer();
             
             $this->mail->addAddress($userData['email'], $userData['full_name']);
             
@@ -149,11 +175,12 @@ class Mailer {
             
             $content = $this->getOrderConfirmationTemplate($orderData, $userData);
             $this->mail->Body = $content;
-            $this->mail->AltBody = $this->getPlainTextContent($content);
+            $this->mail->AltBody = "Your order #{$orderData['order_number']} has been confirmed.";
             
             return $this->mail->send();
             
         } catch (Exception $e) {
+            $this->last_error = $e->getMessage();
             error_log("Failed to send order confirmation: " . $e->getMessage());
             return false;
         }
@@ -164,21 +191,20 @@ class Mailer {
      */
     public function sendPasswordReset($userEmail, $userName, $resetLink) {
         try {
-            $this->mail->clearAddresses();
-            $this->mail->clearCCs();
-            $this->mail->clearBCCs();
+            $this->resetMailer();
             
             $this->mail->addAddress($userEmail, $userName);
             
-            $this->mail->Subject = EMAIL_SUBJECT_PASSWORD_RESET . ' - Green Agric LTD';
+            $this->mail->Subject = EMAIL_SUBJECT_PASSWORD_RESET;
             
             $content = $this->getPasswordResetTemplate($userName, $resetLink);
             $this->mail->Body = $content;
-            $this->mail->AltBody = $this->getPlainTextContent($content);
+            $this->mail->AltBody = "Click here to reset your password: $resetLink";
             
             return $this->mail->send();
             
         } catch (Exception $e) {
+            $this->last_error = $e->getMessage();
             error_log("Failed to send password reset: " . $e->getMessage());
             return false;
         }
@@ -189,9 +215,7 @@ class Mailer {
      */
     public function sendPaymentSuccess($orderData, $userData, $paymentData) {
         try {
-            $this->mail->clearAddresses();
-            $this->mail->clearCCs();
-            $this->mail->clearBCCs();
+            $this->resetMailer();
             
             $this->mail->addAddress($userData['email'], $userData['full_name']);
             
@@ -199,11 +223,12 @@ class Mailer {
             
             $content = $this->getPaymentSuccessTemplate($orderData, $userData, $paymentData);
             $this->mail->Body = $content;
-            $this->mail->AltBody = $this->getPlainTextContent($content);
+            $this->mail->AltBody = "Payment of ₦" . number_format($paymentData['amount'], 2) . " for order #{$orderData['order_number']} was successful.";
             
             return $this->mail->send();
             
         } catch (Exception $e) {
+            $this->last_error = $e->getMessage();
             error_log("Failed to send payment success email: " . $e->getMessage());
             return false;
         }
@@ -214,9 +239,7 @@ class Mailer {
      */
     public function sendSellerNewOrder($orderData, $sellerData, $orderItems) {
         try {
-            $this->mail->clearAddresses();
-            $this->mail->clearCCs();
-            $this->mail->clearBCCs();
+            $this->resetMailer();
             
             $this->mail->addAddress($sellerData['email'], $sellerData['business_name']);
             
@@ -224,14 +247,51 @@ class Mailer {
             
             $content = $this->getSellerNewOrderTemplate($orderData, $sellerData, $orderItems);
             $this->mail->Body = $content;
-            $this->mail->AltBody = $this->getPlainTextContent($content);
+            $this->mail->AltBody = "You have a new order #{$orderData['order_number']}. Please process it soon.";
             
             return $this->mail->send();
             
         } catch (Exception $e) {
+            $this->last_error = $e->getMessage();
             error_log("Failed to send seller notification: " . $e->getMessage());
             return false;
         }
+    }
+    
+    /**
+     * Send email verification link
+     */
+    public function sendEmailVerification($userEmail, $userName, $verificationLink) {
+        try {
+            $this->resetMailer();
+            
+            $this->mail->addAddress($userEmail, $userName);
+            
+            $this->mail->Subject = 'Verify Your Email - Green Agric LTD';
+            
+            $content = $this->getEmailVerificationTemplate($userName, $verificationLink);
+            $this->mail->Body = $content;
+            $this->mail->AltBody = "Verify your email: $verificationLink";
+            
+            return $this->mail->send();
+            
+        } catch (Exception $e) {
+            $this->last_error = $e->getMessage();
+            error_log("Failed to send email verification: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Reset mailer for new email
+     */
+    private function resetMailer() {
+        $this->mail->clearAddresses();
+        $this->mail->clearCCs();
+        $this->mail->clearBCCs();
+        $this->mail->clearReplyTos();
+        $this->mail->clearAttachments();
+        $this->mail->clearCustomHeaders();
     }
     
     /**
@@ -251,7 +311,7 @@ class Mailer {
         ];
         
         $type = $contact_types[$contactData['contact_type']] ?? 'General Inquiry';
-        $userStatus = $contactData['user_id'] ? 'Registered User (ID: ' . $contactData['user_id'] . ')' : 'Guest Visitor';
+        $userStatus = isset($contactData['user_id']) && $contactData['user_id'] ? 'Registered User (ID: ' . $contactData['user_id'] . ')' : 'Guest Visitor';
         
         $content = '
         <h2>📨 New Contact Form Submission</h2>
@@ -259,8 +319,8 @@ class Mailer {
         
         <div class="message-box">
             <h3>👤 Contact Details</h3>
-            <p><strong>Name:</strong> ' . htmlspecialchars($contactData['full_name']) . '</p>
-            <p><strong>Email:</strong> ' . htmlspecialchars($contactData['email']) . '</p>
+            <p><strong>Name:</strong> ' . htmlspecialchars($contactData['full_name'] ?? '') . '</p>
+            <p><strong>Email:</strong> ' . htmlspecialchars($contactData['email'] ?? '') . '</p>
             <p><strong>Phone:</strong> ' . ($contactData['phone'] ? htmlspecialchars($contactData['phone']) : 'Not provided') . '</p>
             <p><strong>Contact Type:</strong> ' . $type . '</p>
             <p><strong>User Status:</strong> ' . $userStatus . '</p>
@@ -268,24 +328,23 @@ class Mailer {
         
         <div class="message-box">
             <h3>💬 Message Details</h3>
-            <p><strong>Subject:</strong> ' . htmlspecialchars($contactData['subject']) . '</p>
+            <p><strong>Subject:</strong> ' . htmlspecialchars($contactData['subject'] ?? '') . '</p>
             <p><strong>Message:</strong></p>
             <div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
-                ' . nl2br(htmlspecialchars($contactData['message'])) . '
+                ' . nl2br(htmlspecialchars($contactData['message'] ?? '')) . '
             </div>
         </div>
         
         <div class="info-box">
             <h3>📊 Submission Details</h3>
             <p><strong>Submitted:</strong> ' . date('F j, Y \a\t g:i A') . '</p>
-            <p><strong>IP Address:</strong> ' . htmlspecialchars($contactData['ip_address'] ?? 'N/A') . '</p>
-            <p><strong>User Agent:</strong> ' . htmlspecialchars($contactData['user_agent'] ?? 'N/A') . '</p>
+            <p><strong>IP Address:</strong> ' . htmlspecialchars($contactData['ip_address'] ?? $_SERVER['REMOTE_ADDR'] ?? 'N/A') . '</p>
         </div>
         
         <div class="highlight">
             <h3>🚀 Action Required</h3>
             <p>Please respond to this inquiry within <strong>24 hours</strong>.</p>
-            <p>You can reply directly to: <strong>' . htmlspecialchars($contactData['email']) . '</strong></p>
+            <p>You can reply directly to: <strong>' . htmlspecialchars($contactData['email'] ?? '') . '</strong></p>
         </div>
         
         <p style="text-align: center; margin-top: 30px;">
@@ -293,11 +352,7 @@ class Mailer {
         </p>
         ';
         
-        return str_replace(
-            ['{content}', '{subject}', '{unsubscribe_link}'],
-            [$content, EMAIL_SUBJECT_CONTACT_ADMIN, BASE_URL . '/unsubscribe'],
-            EMAIL_TEMPLATE_HTML
-        );
+        return $this->renderTemplate($content, EMAIL_SUBJECT_CONTACT_ADMIN);
     }
     
     /**
@@ -308,18 +363,18 @@ class Mailer {
         
         $content = '
         <h2>🙏 Thank You for Contacting Us!</h2>
-        <p>Dear <strong>' . htmlspecialchars($contactData['full_name']) . '</strong>,</p>
+        <p>Dear <strong>' . htmlspecialchars($contactData['full_name'] ?? '') . '</strong>,</p>
         
         <p>We have successfully received your message and our support team will review it shortly.</p>
         
         <div class="message-box">
             <h3>📋 Your Message Summary</h3>
             <p><strong>Reference ID:</strong> ' . $reference_id . '</p>
-            <p><strong>Subject:</strong> ' . htmlspecialchars($contactData['subject']) . '</p>
+            <p><strong>Subject:</strong> ' . htmlspecialchars($contactData['subject'] ?? '') . '</p>
             <p><strong>Submitted:</strong> ' . date('F j, Y \a\t g:i A') . '</p>
             <p><strong>Your Message:</strong></p>
             <div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
-                ' . nl2br(htmlspecialchars($contactData['message'])) . '
+                ' . nl2br(htmlspecialchars($contactData['message'] ?? '')) . '
             </div>
         </div>
         
@@ -352,31 +407,8 @@ class Mailer {
         </p>
         ';
         
-        return str_replace(
-            ['{content}', '{subject}', '{unsubscribe_link}'],
-            [$content, EMAIL_SUBJECT_CONTACT_USER, BASE_URL . '/unsubscribe'],
-            EMAIL_TEMPLATE_HTML
-        );
+        return $this->renderTemplate($content, EMAIL_SUBJECT_CONTACT_USER);
     }
-    
-    /**
-     * Convert HTML to plain text
-     */
-    private function getPlainTextContent($html) {
-        // Remove HTML tags
-        $text = strip_tags($html);
-        
-        // Replace common HTML entities
-        $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
-        
-        // Replace multiple spaces and newlines
-        $text = preg_replace('/\s+/', ' ', $text);
-        
-        // Trim and return
-        return trim($text);
-    }
-    
-    // ... (other template methods remain similar but updated with proper constants)
     
     /**
      * Template for order confirmation
@@ -384,22 +416,22 @@ class Mailer {
     private function getOrderConfirmationTemplate($orderData, $userData) {
         $content = '
         <h2>✅ Order Confirmation</h2>
-        <p>Dear ' . htmlspecialchars($userData['full_name']) . ',</p>
+        <p>Dear ' . htmlspecialchars($userData['full_name'] ?? '') . ',</p>
         
         <p>Thank you for your order! We have received your order and it is being processed.</p>
         
         <div class="message-box">
             <h3>📦 Order Details</h3>
-            <p><strong>Order Number:</strong> ' . $orderData['order_number'] . '</p>
-            <p><strong>Order Date:</strong> ' . date('F j, Y \a\t g:i A', strtotime($orderData['created_at'])) . '</p>
-            <p><strong>Total Amount:</strong> ₦' . number_format($orderData['total_amount'], 2) . '</p>
+            <p><strong>Order Number:</strong> ' . ($orderData['order_number'] ?? 'N/A') . '</p>
+            <p><strong>Order Date:</strong> ' . (isset($orderData['created_at']) ? date('F j, Y \a\t g:i A', strtotime($orderData['created_at'])) : date('F j, Y \a\t g:i A')) . '</p>
+            <p><strong>Total Amount:</strong> ₦' . number_format($orderData['total_amount'] ?? 0, 2) . '</p>
             <p><strong>Status:</strong> <span style="color: #198754; font-weight: bold;">Confirmed</span></p>
         </div>
         
         <p>You can track your order from your account dashboard:</p>
         
         <p style="text-align: center; margin: 30px 0;">
-            <a href="' . BASE_URL . '/buyer/orders/track-order.php?id=' . $orderData['id'] . '" class="btn-primary">Track Your Order</a>
+            <a href="' . BASE_URL . '/buyer/orders/track-order.php?id=' . ($orderData['id'] ?? '') . '" class="btn-primary">Track Your Order</a>
         </p>
         
         <div class="info-box">
@@ -416,11 +448,7 @@ class Mailer {
         <strong>The Green Agric LTD Team</strong></p>
         ';
         
-        return str_replace(
-            ['{content}', '{subject}', '{unsubscribe_link}'],
-            [$content, EMAIL_SUBJECT_ORDER_CONFIRMATION, BASE_URL . '/unsubscribe'],
-            EMAIL_TEMPLATE_HTML
-        );
+        return $this->renderTemplate($content, EMAIL_SUBJECT_ORDER_CONFIRMATION);
     }
     
     /**
@@ -461,38 +489,91 @@ class Mailer {
         <strong>Green Agric LTD Security Team</strong></p>
         ';
         
-        return str_replace(
-            ['{content}', '{subject}', '{unsubscribe_link}'],
-            [$content, EMAIL_SUBJECT_PASSWORD_RESET, BASE_URL . '/unsubscribe'],
-            EMAIL_TEMPLATE_HTML
-        );
+        return $this->renderTemplate($content, EMAIL_SUBJECT_PASSWORD_RESET);
     }
-
+    
     /**
-     * Send email verification link
+     * Template for payment success
      */
-    public function sendEmailVerification($userEmail, $userName, $verificationLink) {
-        try {
-            $this->mail->clearAddresses();
-            $this->mail->clearCCs();
-            $this->mail->clearBCCs();
-            
-            $this->mail->addAddress($userEmail, $userName);
-            
-            $this->mail->Subject = 'Verify Your Email - Green Agric LTD';
-            
-            $content = $this->getEmailVerificationTemplate($userName, $verificationLink);
-            $this->mail->Body = $content;
-            $this->mail->AltBody = $this->getPlainTextContent($content);
-            
-            return $this->mail->send();
-            
-        } catch (Exception $e) {
-            error_log("Failed to send email verification: " . $e->getMessage());
-            return false;
-        }
+    private function getPaymentSuccessTemplate($orderData, $userData, $paymentData) {
+        $content = '
+        <h2>💰 Payment Successful!</h2>
+        <p>Dear ' . htmlspecialchars($userData['full_name'] ?? '') . ',</p>
+        
+        <p>Your payment has been successfully processed. Thank you for your purchase!</p>
+        
+        <div class="message-box">
+            <h3>🧾 Payment Details</h3>
+            <p><strong>Order Number:</strong> ' . ($orderData['order_number'] ?? 'N/A') . '</p>
+            <p><strong>Amount Paid:</strong> ₦' . number_format($paymentData['amount'] ?? 0, 2) . '</p>
+            <p><strong>Payment Reference:</strong> ' . ($paymentData['reference'] ?? 'N/A') . '</p>
+            <p><strong>Payment Date:</strong> ' . date('F j, Y \a\t g:i A') . '</p>
+            <p><strong>Payment Method:</strong> ' . ($paymentData['method'] ?? 'Card') . '</p>
+        </div>
+        
+        <p>Your order is now being processed by the seller.</p>
+        
+        <p style="text-align: center; margin: 30px 0;">
+            <a href="' . BASE_URL . '/buyer/orders/view-order.php?id=' . ($orderData['id'] ?? '') . '" class="btn-primary">View Order Details</a>
+        </p>
+        
+        <p>Best regards,<br>
+        <strong>The Green Agric LTD Team</strong></p>
+        ';
+        
+        return $this->renderTemplate($content, EMAIL_SUBJECT_PAYMENT_SUCCESS);
     }
-
+    
+    /**
+     * Template for seller new order
+     */
+    private function getSellerNewOrderTemplate($orderData, $sellerData, $orderItems) {
+        $itemsList = '';
+        if (!empty($orderItems) && is_array($orderItems)) {
+            $itemsList = '<table><tr><th>Product</th><th>Qty</th><th>Price</th></tr>';
+            foreach ($orderItems as $item) {
+                $itemsList .= '<tr>';
+                $itemsList .= '<td>' . htmlspecialchars($item['product_name'] ?? 'Product') . '</td>';
+                $itemsList .= '<td>' . ($item['quantity'] ?? 0) . '</td>';
+                $itemsList .= '<td>₦' . number_format($item['price'] ?? 0, 2) . '</td>';
+                $itemsList .= '</tr>';
+            }
+            $itemsList .= '</table>';
+        }
+        
+        $content = '
+        <h2>🛍️ New Order Received!</h2>
+        <p>Dear ' . htmlspecialchars($sellerData['business_name'] ?? 'Seller') . ',</p>
+        
+        <p>Congratulations! You have received a new order.</p>
+        
+        <div class="message-box">
+            <h3>📦 Order Summary</h3>
+            <p><strong>Order Number:</strong> ' . ($orderData['order_number'] ?? 'N/A') . '</p>
+            <p><strong>Order Date:</strong> ' . (isset($orderData['created_at']) ? date('F j, Y \a\t g:i A', strtotime($orderData['created_at'])) : date('F j, Y \a\t g:i A')) . '</p>
+            <p><strong>Total Amount:</strong> ₦' . number_format($orderData['total_amount'] ?? 0, 2) . '</p>
+        </div>
+        
+        <h3>📋 Items Ordered:</h3>
+        ' . $itemsList . '
+        
+        <div class="highlight">
+            <h3>⚠️ Action Required</h3>
+            <p>Please process this order within <strong>24 hours</strong>.</p>
+            <p>Log in to your seller dashboard to confirm and prepare the items for shipping.</p>
+        </div>
+        
+        <p style="text-align: center; margin: 30px 0;">
+            <a href="' . BASE_URL . '/seller/orders/process-order.php?id=' . ($orderData['id'] ?? '') . '" class="btn-primary">Process Order Now</a>
+        </p>
+        
+        <p>Best regards,<br>
+        <strong>The Green Agric LTD Team</strong></p>
+        ';
+        
+        return $this->renderTemplate($content, EMAIL_SUBJECT_SELLER_NEW_ORDER);
+    }
+    
     /**
      * Template for email verification
      */
@@ -534,11 +615,34 @@ class Mailer {
         <strong>The Green Agric LTD Team</strong></p>
         ';
         
+        return $this->renderTemplate($content, 'Verify Your Email');
+    }
+    
+    /**
+     * Render email template with placeholders
+     */
+    private function renderTemplate($content, $subject) {
         return str_replace(
-            ['{content}', '{subject}', '{unsubscribe_link}'],
-            [$content, 'Verify Your Email', BASE_URL . '/unsubscribe'],
+            ['{content}', '{subject}', '{unsubscribe_link}', '{year}'],
+            [$content, $subject, BASE_URL . '/unsubscribe?email=placeholder', date('Y')],
             EMAIL_TEMPLATE_HTML
         );
+    }
+    
+    /**
+     * Convert HTML to plain text
+     */
+    private function getPlainTextContent($text) {
+        // Remove HTML tags
+        $text = strip_tags($text);
+        
+        // Replace common HTML entities
+        $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+        
+        // Decode any escaped quotes
+        $text = stripslashes($text);
+        
+        return trim($text);
     }
 }
 ?>

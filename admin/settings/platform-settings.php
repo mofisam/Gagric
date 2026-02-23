@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get current settings (in real app, fetch from database)
 $current_settings = [
     'site_name' => 'Green Agric',
-    'site_email' => 'support@greenagric.ng',
+    'site_email' => 'support@greenagric.shop',
     'site_phone' => '+2347030419150',
     'commission_rate' => '5.0',
     'min_payout_amount' => '5000.00',
