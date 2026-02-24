@@ -29,7 +29,7 @@ class Mailer {
             // Server settings
             $this->mail->isSMTP();
             $this->mail->Host       = SMTP_HOST;
-            $this->mail->SMTPAuth   = SMTP_AUTH; // Use constant
+            $this->mail->SMTPAuth   = SMTP_AUTH; 
             $this->mail->Username   = SMTP_USERNAME;
             $this->mail->Password   = SMTP_PASSWORD;
             $this->mail->SMTPSecure = SMTP_SECURE;

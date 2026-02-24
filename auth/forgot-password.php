@@ -178,16 +178,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <i class="bi bi-send me-1"></i> Send Another
                                     </button>
                                 </div>
-                                
-                                <div class="security-tips">
-                                    <h6><i class="bi bi-lightbulb me-1"></i> Didn't receive the email?</h6>
-                                    <ul class="mb-0">
-                                        <li>Check your spam or junk folder</li>
-                                        <li>Make sure you entered the correct email</li>
-                                        <li>Wait a few minutes and try again</li>
-                                        <li>Contact support if you continue to have issues</li>
-                                    </ul>
-                                </div>
                             <?php else: ?>
                                 <div class="text-center mt-3">
                                     <a href="login.php" class="btn btn-outline-success">Back to Login</a>
