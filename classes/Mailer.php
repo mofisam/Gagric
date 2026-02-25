@@ -156,7 +156,7 @@ class Mailer {
             $this->mail->AltBody = "Reset your password here: $resetLink";
             
             return $this->mail->send();
-            
+             
         } catch (Exception $e) {
             $this->last_error = $e->getMessage();
             error_log("Failed to send password reset: " . $e->getMessage());
