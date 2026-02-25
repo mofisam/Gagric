@@ -1,6 +1,5 @@
 <?php
 require_once '../config/constants.php';
-require_once '../config/smtp.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../classes/Database.php';
