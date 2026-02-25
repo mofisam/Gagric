@@ -1,10 +1,27 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Log file for debugging
+$debug_log = __DIR__ . '/../logs/password_reset_debug.log';
+if (!file_exists(__DIR__ . '/../logs')) {
+    mkdir(__DIR__ . '/../logs', 0777, true);
+}
+
+function debug_log($message) {
+    global $debug_log;
+    $timestamp = date('Y-m-d H:i:s');
+    file_put_contents($debug_log, "[$timestamp] $message\n", FILE_APPEND);
+}
+
+debug_log("=== Password Reset Request Started ===");
+
 require_once '../config/constants.php';
 require_once '../config/smtp.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../classes/Database.php';
-
 
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
@@ -16,47 +33,65 @@ $message = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    debug_log("POST request received");
     $email = trim($_POST['email']);
+    debug_log("Email: " . $email);
     
     if (!empty($email)) {
         require_once '../classes/Validation.php';
         require_once '../classes/Mailer.php';
         
         if (Validation::email($email)) {
+            debug_log("Email validation passed");
+            
             $db = new Database();
             
             // Check if user exists
-            $user = $db->fetchOne("SELECT id, first_name, last_name FROM users WHERE email = ? AND is_active = TRUE", [$email]);
+            $user = $db->fetchOne("SELECT id, first_name, last_name, email FROM users WHERE email = ? AND is_active = TRUE", [$email]);
+            debug_log("User found: " . ($user ? 'Yes' : 'No'));
             
             if ($user) {
+                debug_log("User details: ID=" . $user['id'] . ", Name=" . $user['first_name'] . " " . $user['last_name']);
+                
                 // Generate secure reset token
                 $reset_token = bin2hex(random_bytes(32));
                 $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+                debug_log("Token generated: " . $reset_token);
+                debug_log("Expires: " . $expires);
                 
                 // Delete any existing tokens for this email
                 $db->query("DELETE FROM password_resets WHERE email = ? OR expires_at < NOW()", [$email]);
+                debug_log("Old tokens deleted");
                 
                 // Store new token in database
                 $db->query("INSERT INTO password_resets (email, token, expires_at, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)", 
                           [$email, $reset_token, $expires, $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT'] ?? '']);
+                debug_log("New token stored in database");
                 
                 // Create reset link
                 $reset_link = BASE_URL . "/auth/reset-password.php?token=" . $reset_token;
+                debug_log("Reset link: " . $reset_link);
                 
                 // Send email using Mailer
                 try {
-                    $mailer = new Mailer();
+                    debug_log("Initializing Mailer...");
+                    $mailer = new Mailer(true); // Enable debug mode
+                    debug_log("Mailer initialized");
                     
                     // Prepare user data
                     $user_data = [
-                        'email' => $email,
+                        'email' => $user['email'],
                         'full_name' => $user['first_name'] . ' ' . $user['last_name']
                     ];
+                    debug_log("User data prepared: " . print_r($user_data, true));
                     
                     // Send password reset email
+                    debug_log("Calling sendPasswordReset...");
                     $email_sent = $mailer->sendPasswordReset($email, $user_data['full_name'], $reset_link);
+                    debug_log("sendPasswordReset returned: " . ($email_sent ? 'true' : 'false'));
                     
                     if ($email_sent) {
+                        debug_log("Email sent successfully");
                         $message = '
                         <div class="alert alert-success">
                             <i class="bi bi-check-circle me-2"></i>
@@ -66,25 +101,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         ';
                     } else {
+                        $last_error = $mailer->getLastError();
+                        debug_log("Email sending failed. Last error: " . $last_error);
                         $message = '
                         <div class="alert alert-warning">
                             <i class="bi bi-exclamation-triangle me-2"></i>
                             <strong>Reset link generated!</strong><br>
-                            However, we couldn\'t send the email. Please try again or contact support.
+                            However, we couldn\'t send the email. Error: ' . htmlspecialchars($last_error) . '
                         </div>
                         ';
                     }
                     
                 } catch (Exception $e) {
-                    error_log("Password reset email error: " . $e->getMessage());
+                    debug_log("EXCEPTION: " . $e->getMessage());
+                    debug_log("Stack trace: " . $e->getTraceAsString());
                     $message = '
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
-                        If the email exists, reset instructions will be sent.
+                        Error: ' . htmlspecialchars($e->getMessage()) . '
                     </div>
                     ';
                 }
             } else {
+                debug_log("User not found with email: " . $email);
                 // Don't reveal if email exists (security)
                 $message = '
                 <div class="alert alert-info">
@@ -94,6 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ';
             }
         } else {
+            debug_log("Email validation failed for: " . $email);
             $error = '
             <div class="alert alert-danger">
                 <i class="bi bi-exclamation-triangle me-2"></i>
@@ -102,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ';
         }
     } else {
+        debug_log("Email field was empty");
         $error = '
         <div class="alert alert-danger">
             <i class="bi bi-exclamation-triangle me-2"></i>
@@ -109,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         ';
     }
+    debug_log("=== Password Reset Request Ended ===");
 }
 ?>
 
@@ -145,6 +187,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .resend-link {
             font-size: 0.9rem;
             margin-top: 15px;
+        }
+        .debug-info {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow: auto;
         }
     </style>
 </head>
@@ -226,6 +278,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
 
                         <?php endif; ?>
+                        
+                        <!-- Debug info (remove in production) -->
+                        <div class="debug-info">
+                            <strong>Debug Log:</strong><br>
+                            <?php
+                            if (file_exists($debug_log)) {
+                                $logs = file($debug_log);
+                                $last_logs = array_slice($logs, -10);
+                                echo "<pre>";
+                                foreach ($last_logs as $log) {
+                                    echo htmlspecialchars($log) . "\n";
+                                }
+                                echo "</pre>";
+                            } else {
+                                echo "No debug log yet";
+                            }
+                            ?>
+                        </div>
                     </div>
                 </div>
                 
