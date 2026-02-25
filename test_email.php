@@ -37,7 +37,7 @@ try {
     
     $contactData = [
         'full_name' => 'John Doe',
-        'email' => 'your-personal-email@gmail.com', // CHANGE THIS
+        'email' => 'techempery@gmail.com', // CHANGE THIS
         'subject' => 'Thank you',
         'message' => 'We received your message.'
     ];
