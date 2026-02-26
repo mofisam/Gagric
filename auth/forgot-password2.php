@@ -19,17 +19,17 @@ $message = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email']);
+    $userEmail = trim($_POST['email']);
     
-    if (!empty($email)) {
+    if (!empty($userEmail)) {
         require_once '../classes/Validation.php';
         require_once '../classes/Mailer.php';
         
-        if (Validation::email($email)) {
+        if (Validation::email($userEmail)) {
             $db = new Database();
             
             // Check if user exists
-            $user = $db->fetchOne("SELECT id, first_name, last_name FROM users WHERE email = ? AND is_active = TRUE", [$email]);
+            $user = $db->fetchOne("SELECT id, first_name, last_name FROM users WHERE email = ? AND is_active = TRUE", [$userEmail]);
             
             if ($user) {
                 // Generate secure reset token
@@ -37,11 +37,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
                 
                 // Delete any existing tokens for this email
-                $db->query("DELETE FROM password_resets WHERE email = ? OR expires_at < NOW()", [$email]);
+                $db->query("DELETE FROM password_resets WHERE email = ? OR expires_at < NOW()", [$userEmail]);
                 
                 // Store new token in database
                 $db->query("INSERT INTO password_resets (email, token, expires_at, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)", 
-                          [$email, $reset_token, $expires, $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT'] ?? '']);
+                          [$userEmail, $reset_token, $expires, $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT'] ?? '']);
                 
                 // Create reset link
                 $resetLink = BASE_URL . "/auth/reset-password.php?token=" . $reset_token;
@@ -55,20 +55,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $userName = $user['first_name'] . ' ' . $user['last_name'];
                     
                     // Send password reset email
-                    $email_sent = $mailer->sendPasswordReset($email, $userName, $resetLink);
+                    $userEmail_sent = $mailer->sendPasswordReset($userEmail, $userName, $resetLink);
                     
-                    if ($email_sent) {
+                    if ($userEmail_sent) {
                         $message = '
                         <div class="alert alert-success">
                             <i class="bi bi-check-circle me-2"></i>
                             <strong>Reset link sent successfully!</strong><br>
-                            We have sent a password reset link to <strong>' . htmlspecialchars($email) . '</strong>.
+                            We have sent a password reset link to <strong>' . htmlspecialchars($userEmail) . '</strong>.
                             Please check your inbox (and spam folder).
                         </div>
                         ';
                         
                         // Log success
-                        error_log("Password reset email sent successfully to: " . $email);
+                        error_log("Password reset email sent successfully to: " . $userEmail);
                     } else {
                         // Get the error from mailer
                         $mailer_error = $mailer->getLastError();
