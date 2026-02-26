@@ -26,7 +26,7 @@ function generateUUID() {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $first_name = trim($_POST['first_name']);
     $last_name = trim($_POST['last_name']);
-    $email = trim($_POST['email']);
+    $userEmail = trim($_POST['email']);
     $phone = trim($_POST['phone']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Use validation functions
     $validation_errors = [];
     
-    if (empty($first_name) || empty($last_name) || empty($email) || empty($phone) || empty($password)) {
+    if (empty($first_name) || empty($last_name) || empty($userEmail) || empty($phone) || empty($password)) {
         $validation_errors[] = 'All fields are required';
     }
     
@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $validation_errors[] = 'Passwords do not match';
     }
     
-    if (!validateEmail($email)) {
+    if (!validateEmail($userEmail)) {
         $validation_errors[] = 'Please enter a valid email address';
     }
     
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = new User($db);
         
         // Check if user already exists
-        $existing = $db->fetchOne("SELECT id, is_email_verified FROM users WHERE email = ? OR phone = ?", [$email, $phone]);
+        $existing = $db->fetchOne("SELECT id, is_email_verified FROM users WHERE email = ? OR phone = ?", [$userEmail, $phone]);
         if ($existing) {
             $error = 'User with this email or phone already exists';
         } else {
@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'uuid' => $uuid,
                 'first_name' => $first_name,
                 'last_name' => $last_name,
-                'email' => $email,
+                'email' => $userEmail,
                 'phone' => $phone,
                 'password' => $password,
                 'role' => $role,
@@ -99,20 +99,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Send verification email
                 try {
                     $mailer = new Mailer();
-                    $verification_link = BASE_URL . "/auth/verify-email.php?token=" . $verification_token . "&email=" . urlencode($email);
+                    $verificationLink = BASE_URL . "/auth/verify-email.php?token=" . $verification_token . "&email=" . urlencode($userEmail);
                     
                     // Get user's full name
-                    $user_name = $first_name . ' ' . $last_name;
+                    $userName = $first_name . ' ' . $last_name;
                     
                     // Send verification email
-                    $email_sent = $mailer->sendEmailVerification($email, $user_name, $verification_link);
+                    $email_sent = $mailer->sendEmailVerification($userEmail, $userName, $verificationLink);
                     
                     if ($email_sent) {
                         $email_verification_sent = true;
                         $success = 'Registration successful! Please check your email to verify your account.';
                     } else {
                         // Log the error but don't stop registration
-                        error_log("Failed to send verification email to: " . $email);
+                        error_log("Failed to send verification email to: " . $userEmail);
                         $success = 'Registration successful! However, we couldn\'t send the verification email. Please contact support.';
                     }
                     
@@ -230,7 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <hr>
                                     <p class="mb-0 small">
                                         <i class="bi bi-envelope-fill me-1"></i>
-                                        We've sent a verification link to <strong><?php echo htmlspecialchars($email); ?></strong>. 
+                                        We've sent a verification link to <strong><?php echo htmlspecialchars($userEmail); ?></strong>. 
                                         Please check your inbox and spam folder.
                                     </p>
                                 <?php endif; ?>
