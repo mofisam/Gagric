@@ -8,7 +8,7 @@
  */
 function sendEmail($to, $subject, $message, $headers = null) {
     if ($headers === null) {
-        $headers = "From: no-reply@greenagric.ng\r\n";
+        $headers = "From: no-reply@greenagric.shop\r\n";
         $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
     }
     

@@ -206,7 +206,7 @@ include 'includes/header.php';
                                 <i class="bi bi-envelope text-success me-3" style="font-size: 1.5rem;"></i>
                                 <div>
                                     <h6>Email Us</h6>
-                                    <p class="mb-0">info@greenagric.ng</p>
+                                    <p class="mb-0">info@greenagric.shop</p>
                                 </div>
                             </div>
                         </div>

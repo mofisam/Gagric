@@ -339,7 +339,7 @@ include 'includes/header.php';
                             <h5 class="card-title mt-3">Email Us</h5>
                             <p class="card-text">
                                 <strong>General Inquiries:</strong><br>
-                                info@greenagric.ng<br>
+                                info@greenagric.shop<br>
                                 <strong>Support:</strong><br>
                                 support@greenagric.shop
                             </p>

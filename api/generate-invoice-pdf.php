@@ -70,8 +70,8 @@ $platform_info = [
     'address' => '123 Agriculture Street, Ikeja',
     'city' => 'Lagos',
     'phone' => '+234 703 041 9150',
-    'email' => 'invoices@greenagric.ng',
-    'website' => 'www.greenagric.ng',
+    'email' => 'invoices@greenagric.shop',
+    'website' => 'www.green-agric.com',
 ];
 
 // Build HTML content

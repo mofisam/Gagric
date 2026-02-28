@@ -20,7 +20,7 @@ class Mailer {
     private $debug_mode = true;
     
     //change the "$debug = true" to "$debug = false"  after debugging ()
-    public function __construct($debug = true) {
+    public function __construct($debug = false) {
         $this->debug_mode = $debug;
         $this->mail = new PHPMailer(true);
         
@@ -66,10 +66,10 @@ class Mailer {
             $this->mail->clearBCCs();
             
             // Recipient (admin)
-            $this->mail->addAddress('support@greenagric.ng', 'Green Agric Support');
+            $this->mail->addAddress('support@greenagric.shop', 'Green Agric Support');
             
             // Optional: Add CC to other admins
-            // $this->mail->addCC('admin@greenagric.ng', 'Administrator');
+            // $this->mail->addCC('admin@greenagric.shop', 'Administrator');
             
             // Subject
             $this->mail->Subject = EMAIL_SUBJECT_CONTACT_ADMIN . ': ' . $contactData['subject'];
