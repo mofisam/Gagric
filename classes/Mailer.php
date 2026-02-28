@@ -17,7 +17,7 @@ require_once __DIR__ . '/../config/constants.php';
 
 class Mailer {
     private $mail;
-    private $debug_mode = true;
+    private $debug_mode = false;
     
     //change the "$debug = true" to "$debug = false"  after debugging ()
     public function __construct($debug = false) {
@@ -28,6 +28,8 @@ class Mailer {
             // Enable debug if needed
             if ($this->debug_mode) {
                 $this->mail->SMTPDebug = SMTP::DEBUG_SERVER;
+            } else {
+                $this->mail->SMTPDebug = SMTP::DEBUG_OFF;
             }
             
             // Server settings
