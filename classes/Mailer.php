@@ -315,7 +315,7 @@ class Mailer {
         <p>We have successfully received your message and our support team will review it shortly.</p>
         
         <div class="message-box">
-            <h3>📋 Your Message Summary</h3>
+            <h3> Your Message Summary</h3>
             <p><strong>Reference ID:</strong> ' . $reference_id . '</p>
             <p><strong>Subject:</strong> ' . htmlspecialchars($contactData['subject']) . '</p>
             <p><strong>Submitted:</strong> ' . date('F j, Y \a\t g:i A') . '</p>

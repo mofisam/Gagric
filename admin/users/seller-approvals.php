@@ -28,10 +28,19 @@ if (isset($_GET['reject'])) {
 
 // Get pending seller approvals
 $pending_sellers = $db->fetchAll("
-    SELECT u.*, sp.* 
-    FROM users u 
-    JOIN seller_profiles sp ON u.id = sp.user_id 
-    WHERE sp.is_approved = FALSE 
+    SELECT 
+        u.id AS user_id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.phone,
+        sp.business_name,
+        sp.business_reg_number,
+        sp.business_description,
+        sp.created_at AS application_date
+    FROM users u
+    JOIN seller_profiles sp ON u.id = sp.user_id
+    WHERE sp.is_approved = 0
     ORDER BY sp.created_at DESC
 ");
 
@@ -60,32 +69,32 @@ $page_title = "Seller Approvals";
                     <div class="col-md-6 mb-4">
                         <div class="card h-100">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><?php echo htmlspecialchars($seller['business_name']); ?></h5>
+                                <h5 class="mb-0"><?php echo htmlspecialchars($seller['business_name'] ?? ''); ?></h5>
                                 <span class="badge bg-warning">Pending</span>
                             </div>
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <strong>Owner:</strong> <?php echo htmlspecialchars($seller['first_name'] . ' ' . $seller['last_name']); ?>
+                                    <?php echo htmlspecialchars(($seller['first_name'] ?? '') . ' ' . ($seller['last_name'] ?? '')); ?>
                                 </div>
                                 <div class="mb-3">
-                                    <strong>Email:</strong> <?php echo htmlspecialchars($seller['email']); ?>
+                                    <strong>Email:</strong> <?php echo htmlspecialchars($seller['email']  ?? ''); ?>
                                 </div>
                                 <div class="mb-3">
-                                    <strong>Phone:</strong> <?php echo htmlspecialchars($seller['phone']); ?>
+                                    <strong>Phone:</strong> <?php echo htmlspecialchars($seller['phone'] ?? ''); ?>
                                 </div>
-                                <?php if ($seller['business_description']): ?>
+                                <?php if ($seller['business_description'] ?? ''): ?>
                                 <div class="mb-3">
                                     <strong>Description:</strong>
-                                    <p class="mb-0"><?php echo htmlspecialchars($seller['business_description']); ?></p>
+                                    <p class="mb-0"><?php echo htmlspecialchars($seller['business_description'] ?? ''); ?></p>
                                 </div>
                                 <?php endif; ?>
-                                <?php if ($seller['business_reg_number']): ?>
+                                <?php if ($seller['business_reg_number'] ?? ''): ?>
                                 <div class="mb-3">
-                                    <strong>Registration:</strong> <?php echo htmlspecialchars($seller['business_reg_number']); ?>
+                                    <strong>Registration:</strong> <?php echo htmlspecialchars($seller['business_reg_number'] ?? ''); ?>
                                 </div>
                                 <?php endif; ?>
                                 <div class="mb-3">
-                                    <strong>Applied:</strong> <?php echo date('M j, Y', strtotime($seller['created_at'])); ?>
+                                    <strong>Applied:</strong> <?php echo date('M j, Y', strtotime($seller['created_at'] ?? '')); ?>
                                 </div>
                             </div>
                             <div class="card-footer">

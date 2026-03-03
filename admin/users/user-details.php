@@ -15,10 +15,18 @@ if (!$user_id) {
 
 // Get user details
 $user = $db->fetchOne("
-    SELECT u.*, sp.* 
-    FROM users u 
-    LEFT JOIN seller_profiles sp ON u.id = sp.user_id 
+    SELECT 
+        u.*,
+        sp.business_name,
+        sp.business_reg_number,
+        sp.is_approved,
+        sp.approved_at,
+        sp.total_sales,
+        sp.avg_rating
+    FROM users u
+    LEFT JOIN seller_profiles sp ON u.id = sp.user_id
     WHERE u.id = ?
+   
 ", [$user_id]);
 
 if (!$user) {
@@ -127,11 +135,11 @@ $page_title = "User Details - " . $user['first_name'] . ' ' . $user['last_name']
                             <table class="table table-borderless">
                                 <tr>
                                     <th width="40%">Business Name:</th>
-                                    <td><?php echo htmlspecialchars($user['business_name']); ?></td>
+                                    <td><?php echo htmlspecialchars($user['business_name'] ?? 'Not Available'); ?></td>
                                 </tr>
                                 <tr>
                                     <th>Registration No:</th>
-                                    <td><?php echo htmlspecialchars($user['business_reg_number'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars($user['business_reg_number'] ?? 'Not Available'); ?></td>
                                 </tr>
                                 <tr>
                                     <th>Approval Status:</th>
@@ -149,7 +157,7 @@ $page_title = "User Details - " . $user['first_name'] . ' ' . $user['last_name']
                                 <?php endif; ?>
                                 <tr>
                                     <th>Total Sales:</th>
-                                    <td>₦<?php echo number_format($user['total_sales'], 2); ?></td>
+                                    ₦<?php echo number_format($user['total_sales'] ?? 0, 2); ?>
                                 </tr>
                                 <tr>
                                     <th>Rating:</th>
