@@ -2,11 +2,57 @@
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
 require_once '../../classes/Database.php';
+require_once '../../classes/Mailer.php';
 
 requireBuyer();
 
 $db = new Database();
 $user_id = getCurrentUserId();
+
+// Handle verification email request
+if (isset($_GET['verify_email']) && $_GET['verify_email'] == 'send') {
+    // Check if already verified
+    $user_check = $db->fetchOne("SELECT is_email_verified, email, first_name, last_name FROM users WHERE id = ?", [$user_id]);
+    
+    if ($user_check['is_email_verified']) {
+        $_SESSION['verification_message'] = 'Your email is already verified.';
+        $_SESSION['verification_type'] = 'info';
+    } else {
+        // Generate new verification token
+        $verification_token = bin2hex(random_bytes(32));
+        $verification_expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        
+        // Save token to database
+        $db->query(
+            "UPDATE users SET email_verification_token = ?, email_verification_expires = ? WHERE id = ?",
+            [$verification_token, $verification_expires, $user_id]
+        );
+        
+        // Send verification email
+        try {
+            $mailer = new Mailer();
+            $verificationLink = BASE_URL . "/auth/verify-email.php?token=" . $verification_token . "&email=" . urlencode($user_check['email']);
+            $userName = $user_check['first_name'] . ' ' . $user_check['last_name'];
+            
+            $email_sent = $mailer->sendEmailVerification($user_check['email'], $userName, $verificationLink);
+            
+            if ($email_sent) {
+                $_SESSION['verification_message'] = 'Verification email has been sent to ' . htmlspecialchars($user_check['email']) . '. Please check your inbox and spam folder.';
+                $_SESSION['verification_type'] = 'success';
+            } else {
+                $_SESSION['verification_message'] = 'Failed to send verification email. Please try again later or contact support.';
+                $_SESSION['verification_type'] = 'danger';
+            }
+        } catch (Exception $e) {
+            error_log("Verification email error for user $user_id: " . $e->getMessage());
+            $_SESSION['verification_message'] = 'An error occurred while sending the verification email. Please try again.';
+            $_SESSION['verification_type'] = 'danger';
+        }
+    }
+    
+    header('Location: personal-info.php');
+    exit;
+}
 
 // Get user data
 $user = $db->fetchOne("SELECT * FROM users WHERE id = ?", [$user_id]);
@@ -14,6 +60,14 @@ $profile = $db->fetchOne("SELECT * FROM seller_profiles WHERE user_id = ?", [$us
 
 $message = '';
 $error = '';
+
+// Check for session messages from verification request
+if (isset($_SESSION['verification_message'])) {
+    $message = $_SESSION['verification_message'];
+    $message_type = $_SESSION['verification_type'] ?? 'success';
+    unset($_SESSION['verification_message']);
+    unset($_SESSION['verification_type']);
+}
 
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -54,6 +108,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_name'] = $first_name;
             
             $message = 'Profile updated successfully';
+            $message_type = 'success';
+            
             // Refresh user data
             $user = $db->fetchOne("SELECT * FROM users WHERE id = ?", [$user_id]);
         }
@@ -103,11 +159,17 @@ include '../../includes/header.php';
                 </div>
                 <div class="card-body">
                     <?php if ($message): ?>
-                        <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
+                        <div class="alert alert-<?php echo $message_type ?? 'success'; ?> alert-dismissible fade show" role="alert">
+                            <?php echo $message; ?>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     <?php endif; ?>
                     
                     <?php if ($error): ?>
-                        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <?php echo htmlspecialchars($error); ?>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     <?php endif; ?>
                     
                     <form method="POST" action="">
@@ -127,9 +189,29 @@ include '../../includes/header.php';
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="email" class="form-label">Email Address</label>
-                                <input type="email" class="form-control" id="email" 
-                                       value="<?php echo htmlspecialchars($user['email']); ?>" readonly>
-                                <div class="form-text">Email cannot be changed</div>
+                                <div class="input-group">
+                                    <input type="email" class="form-control" id="email" 
+                                           value="<?php echo htmlspecialchars($user['email']); ?>" readonly>
+                                    <?php if (!$user['is_email_verified']): ?>
+                                        <a href="?verify_email=send" class="btn btn-outline-warning" 
+                                           onclick="return confirm('Send verification email to <?php echo htmlspecialchars($user['email']); ?>?')">
+                                             Verify
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="btn btn-outline-success disabled">
+                                            <i class="bi bi-check-circle me-1"></i> Verified
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="form-text">
+                                    <?php if (!$user['is_email_verified']): ?>
+                                        <i class="bi bi-info-circle text-warning me-1"></i>
+                                        Email not verified. Click Verify to receive verification link.
+                                    <?php else: ?>
+                                        <i class="bi bi-check-circle text-success me-1"></i>
+                                        Your email is verified.
+                                    <?php endif; ?>
+                                </div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="phone" class="form-label">Phone Number *</label>
@@ -156,7 +238,7 @@ include '../../includes/header.php';
                         
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="../dashboard.php" class="btn btn-outline-secondary me-2">Cancel</a>
-                            <button class="btn btn-success">Update Profile</button>
+                            <button type="submit" class="btn btn-success">Update Profile</button>
                         </div>
                     </form>
                 </div>
@@ -192,25 +274,16 @@ include '../../includes/header.php';
                                     <td>
                                         <?php if ($user['is_email_verified']): ?>
                                             <span class="badge bg-success">Verified</span>
+                                            <i class="bi bi-check-circle-fill text-success ms-1" title="Verified"></i>
                                         <?php else: ?>
                                             <span class="badge bg-warning">Not Verified</span>
-                                            <a href="#" class="btn btn-sm btn-outline-success ms-2">Verify Now</a>
+                                            <a href="?verify_email=send" class="btn btn-sm btn-outline-success ms-2" 
+                                               onclick="return confirm('Send verification email to <?php echo htmlspecialchars($user['email']); ?>?')">
+                                                 Verify Now
+                                            </a>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
-                                <!--
-                                <tr>
-                                    <th>Phone Verified:</th>
-                                    <td>
-                                        <?php if ($user['is_phone_verified']): ?>
-                                            <span class="badge bg-success">Verified</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-warning">Not Verified</span>
-                                            <a href="#" class="btn btn-sm btn-outline-success ms-2">Verify Now</a>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                    -->
                                 <tr>
                                     <th>Account Status:</th>
                                     <td>
@@ -226,8 +299,22 @@ include '../../includes/header.php';
                     </div>
                 </div>
             </div>
+            
         </div>
     </div>
 </div>
+
+<script>
+// Auto-dismiss alerts after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 5000);
+});
+</script>
 
 <?php include '../../includes/footer.php'; ?>

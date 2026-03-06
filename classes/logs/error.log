@@ -1,8 +1,0 @@
-[2026-03-01 23:38:39] Unknown column 'oi.created_at' in 'where clause'
-[2026-03-03 05:50:58] Unknown column 'oi.created_at' in 'where clause'
-[2026-03-03 05:51:55] Unknown column 'oi.created_at' in 'where clause'
-[2026-03-03 05:52:17] Unknown column 'oi.created_at' in 'where clause'
-[2026-03-03 05:56:09] Unknown column 'sp.phone' in 'field list'
-[2026-03-03 06:00:08] Unknown column 'sp.phone' in 'field list'
-[2026-03-04 21:27:55] Unknown column 'oi.created_at' in 'where clause'
-[2026-03-04 21:51:55] Unknown column 'oi.created_at' in 'where clause'
