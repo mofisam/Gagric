@@ -173,10 +173,9 @@ body {
 }
 
 .form-control:focus {
-    outline: none;
-    border-color: var(--primary);
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
 }
-
 /* Alerts */
 .alert {
     padding: 1rem;

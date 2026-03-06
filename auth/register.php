@@ -140,6 +140,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link href="../assets/css/auth.css" rel="stylesheet">
     <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%,rgb(81, 246, 81) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
         .password-input-group {
             position: relative;
         }
@@ -196,6 +204,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .email-status {
             transition: all 0.3s ease;
+        }
+        .form-control:focus {
+            border-color: #28a745;
+            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
         }
     </style>
 </head>

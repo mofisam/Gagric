@@ -488,7 +488,7 @@ include 'includes/header.php';
                 <div class="bg-white rounded-3 p-5 text-dark">
                     <h3 class="mb-4">Why Sell on Green Agric LTD?</h3>
                     <ul class="list-unstyled">
-                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Zero listing fees</li>
+                        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Enjoy 6 months free access for early farmers</li>
                         <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Nationwide customer base</li>
                         <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Secure payment system</li>
                         <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> Logistics support</li>

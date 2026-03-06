@@ -157,10 +157,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="auth-card card shadow">
                     <div class="card-body p-4 p-lg-5">
                         <div class="text-center mb-4">
-                            <img src="../assets/images/logo.jpeg"
-                                alt="Green Agric Logo"
-                                class="mb-3"
-                                style="height:80px; width:auto; border-radius: 10px;">
+                            <a href="../" >
+                                <img src="../assets/images/logo.jpeg"
+                                    alt="Green Agric Logo"
+                                    class="mb-3"
+                                    style="height:80px; width:auto; border-radius: 10px;">
+                            </a>
                             <h2 class="card-title fw-bold text-success">Welcome Back</h2>
                             <p class="text-muted">Sign in to continue your agricultural journey</p>
                         </div>

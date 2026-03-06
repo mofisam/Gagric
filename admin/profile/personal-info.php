@@ -3,7 +3,7 @@ require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
 require_once '../../classes/Database.php';
 
-requireBuyer();
+requireAdmin();
 
 $db = new Database();
 $user_id = getCurrentUserId();
@@ -198,7 +198,6 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                 </tr>
-                                <!--
                                 <tr>
                                     <th>Phone Verified:</th>
                                     <td>
@@ -210,7 +209,6 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                 </tr>
-                                    -->
                                 <tr>
                                     <th>Account Status:</th>
                                     <td>

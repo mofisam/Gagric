@@ -277,7 +277,7 @@ $user_name = $_SESSION['user_name'] ?? null;
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/buyer/dashboard.php">
                                     <i class="bi bi-speedometer2"></i> Dashboard
                                 </a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/buyer/profile/personal-info.php">
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/admin/profile/personal-info.php">
                                     <i class="bi bi-person"></i> Profile
                                 </a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/buyer/orders/order-history.php">
