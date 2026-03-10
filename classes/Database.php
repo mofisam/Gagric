@@ -1,9 +1,9 @@
 <?php
 class Database {
     private $host = 'localhost';
-    private $username = 'root';
-    private $password = '1234';
-    private $database = 'greenagric';
+    private $username = 'vdulgpgj_mofisam';
+    private $password = '7&S)#ch7Indd';
+    private $database = 'vdulgpgj_greenagric';
 
     public $conn;
 
