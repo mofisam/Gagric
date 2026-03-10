@@ -1,7 +1,7 @@
 <?php
 require_once '../../includes/auth.php';
 requireAdmin();
-require_once '../../includes/header.php';
+
 require_once '../../classes/Database.php';
 require_once '../../classes/Product.php';
 
@@ -88,7 +88,7 @@ $pending_by_category = $db->fetchAll("
     GROUP BY c.id 
     ORDER BY count DESC
 ");
-
+require_once '../../includes/header.php';
 $page_title = "Product Approvals";
 $page_css = 'dashboard.css';
 ?>

@@ -49,13 +49,16 @@ $pending_products = $db->fetchAll("
 
 // Top selling products
 $top_products = $db->fetchAll("
-    SELECT p.name, COUNT(oi.id) as sales_count, SUM(oi.quantity) as total_quantity
+    SELECT p.name,
+    COUNT(oi.id) AS sales_count,
+    SUM(oi.quantity) AS total_quantity
     FROM order_items oi
     JOIN products p ON oi.product_id = p.id
-    WHERE oi.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    GROUP BY p.id
+    JOIN orders o ON oi.order_id = o.id
+    WHERE o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    GROUP BY p.id, p.name
     ORDER BY sales_count DESC
-    LIMIT 5
+    LIMIT 5;
 ");
 
 ?>

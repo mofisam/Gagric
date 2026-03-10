@@ -1,7 +1,7 @@
 <?php
 require_once '../../includes/auth.php';
 requireAdmin();
-require_once '../../includes/header.php';
+
 require_once '../../classes/Database.php';
 
 
@@ -93,7 +93,7 @@ $stats = [
     'featured_products' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE is_featured = TRUE AND status = 'approved'")['count'],
     'today_products' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE DATE(created_at) = CURDATE()")['count']
 ];
-
+require_once '../../includes/header.php';
 $page_title = "Manage Products";
 $page_css = 'dashboard.css';
 ?>

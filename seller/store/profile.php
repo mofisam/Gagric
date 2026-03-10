@@ -39,7 +39,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $success = 'Profile updated successfully!';
             // Refresh profile data
-            $seller_profile = $db->fetchOne("SELECT * FROM seller_profiles WHERE user_id = ?", [$seller_id]);
+            $seller_profile = $db->fetchOne("
+                SELECT sp.*, u.first_name, u.last_name, u.email, u.phone
+                FROM seller_profiles sp
+                JOIN users u ON sp.user_id = u.id
+                WHERE sp.user_id = ?
+            ", [$seller_id]);
         } catch (Exception $e) {
             $error = 'Error updating profile: ' . $e->getMessage();
         }
