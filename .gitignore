@@ -1,3 +1,4 @@
 config/
 assets/uploads/
 classes/logs/error.log
+classes/database.php
