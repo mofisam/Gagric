@@ -8,9 +8,9 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     require_once __DIR__ . '/../vendor/autoload.php';
 } else {
     // Manual installation path
-    require_once __DIR__ . '/../vendor/PHPMailer/PHPMailer/src/Exception.php';
-    require_once __DIR__ . '/../vendor/PHPMailer/PHPMailer/src/PHPMailer.php';
-    require_once __DIR__ . '/../vendor/PHPMailer/PHPMailer/src/SMTP.php';
+    require_once __DIR__ . '/../vendor/PHPMailer/src/Exception.php';
+    require_once __DIR__ . '/../vendor/PHPMailer/src/PHPMailer.php';
+    require_once __DIR__ . '/../vendor/PHPMailer/src/SMTP.php';
 }
 
 require_once __DIR__ . '/../config/constants.php';

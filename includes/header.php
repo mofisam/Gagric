@@ -276,20 +276,48 @@ $user_name = $_SESSION['user_name'] ?? null;
                                 <i class="bi bi-person-circle"></i> <?php echo htmlspecialchars($user_name); ?>
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/buyer/dashboard.php">
+                            <!-- Dashboard (role specific) -->
+                            <li>
+                                <a class="dropdown-item" href="
+                                    <?php
+                                    if ($user_role === 'admin') {
+                                        echo BASE_URL . '/admin/dashboard.php';
+                                    } elseif ($user_role === 'seller') {
+                                        echo BASE_URL . '/seller/dashboard.php';
+                                    } else {
+                                        echo BASE_URL . '/buyer/dashboard.php';
+                                    }
+                                    ?>">
                                     <i class="bi bi-speedometer2"></i> Dashboard
-                                </a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/buyer/profile/personal-info.php">
+                                </a>
+                            </li>
+
+                            <!-- Profile (all users) -->
+                            <li>
+                                <a class="dropdown-item" href="<?php echo BASE_URL; ?>/buyer/profile/personal-info.php">
                                     <i class="bi bi-person"></i> Profile
-                                </a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/buyer/orders/order-history.php">
-                                    <i class="bi bi-bag"></i> My Orders
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-danger" href="<?php echo BASE_URL; ?>/auth/logout.php">
+                                </a>
+                            </li>
+
+                            <!-- Buyer Orders Only -->
+                            <?php if ($user_role === 'buyer'): ?>
+                                <li>
+                                    <a class="dropdown-item" href="<?php echo BASE_URL; ?>/buyer/orders/order-history.php">
+                                        <i class="bi bi-bag"></i> My Orders
+                                    </a>
+                                </li>
+                            <?php endif; ?>
+
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- Logout -->
+                            <li>
+                                <a class="dropdown-item text-danger" href="<?php echo BASE_URL; ?>/auth/logout.php">
                                     <i class="bi bi-box-arrow-right"></i> Logout
-                                </a></li>
-                            </ul>
+                                </a>
+                            </li>
+
+                        </ul>
                         </li>
                         
                         <?php if ($user_role === 'buyer'): ?>
@@ -304,7 +332,7 @@ $user_name = $_SESSION['user_name'] ?? null;
                         <?php endif; ?>
                     <?php else: ?>
                         <!-- User is not logged in -->
-                        <?php if ($user_role === 'null'): ?>
+                        <?php if ($user_role === null): ?>
                             <li class="nav-item">
                                 <a class="nav-link position-relative" href="<?php echo BASE_URL; ?>/buyer/cart/view-cart.php">
                                     <i class="bi bi-cart3"></i> Cart

@@ -72,7 +72,7 @@ $related_products = $db->fetchAll("
 $in_wishlist = false;
 if (isLoggedIn()) {
     $wishlist_check = $db->fetchOne(
-        "SELECT id FROM wishlist WHERE product_id = ? AND user_id = ?",
+        "SELECT id FROM wishlists WHERE product_id = ? AND user_id = ?",
         [$product_id, getCurrentUserId()]
     );
     $in_wishlist = (bool)$wishlist_check;
