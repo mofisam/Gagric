@@ -109,7 +109,7 @@ $active_settings = (strpos($current_uri, '/admin/settings/') !== false) ? 'activ
                                href="<?php echo BASE_URL; ?>/admin/products/product-approvals.php">
                                 <i class="bi bi-clock-history me-1"></i>
                                 Approvals
-                                <?php if($stats['pending_approvals'] ?? 0 > 0): ?>
+                                <?php if( ($stats['pending_approvals'] ?? 0) > 0 ): ?>
                                     <span class="badge bg-warning float-end">
                                         <?php echo $stats['pending_approvals']; ?>
                                     </span>
