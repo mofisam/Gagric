@@ -138,15 +138,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Register - Green Agric</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link href="../assets/css/auth.css" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%,rgb(81, 246, 81) 100%);
+            background: linear-gradient(135deg, #667eea 0%, rgb(81, 246, 81) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .auth-card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            background: rgba(255,255,255,0.95);
         }
         .password-input-group {
             position: relative;
@@ -197,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .verification-badge {
             position: absolute;
-            right: 10px;
+            right: 15px;
             top: 50%;
             transform: translateY(-50%);
             color: #198754;
@@ -205,9 +212,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .email-status {
             transition: all 0.3s ease;
         }
+        .btn-success {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(40, 167, 69, 0.3);
+        }
         .form-control:focus {
             border-color: #28a745;
             box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+        }
+        .auth-container {
+            width: 100%;
+            padding: 15px;
+        }
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+        }
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .divider::before {
+            margin-right: .5rem;
+        }
+        .divider::after {
+            margin-left: .5rem;
+        }
+        .role-selector {
+            margin-top: 8px;
+        }
+        .form-check-input:checked {
+            background-color: #28a745;
+            border-color: #28a745;
         }
     </style>
 </head>
@@ -216,12 +260,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="row justify-content-center">
             <div class="col-md-8 col-lg-7">
                 <div class="auth-card card shadow">
-                    <div class="card-body p-4 p-lg-2">
+                    <div class="card-body p-4 p-lg-5">
                         <div class="text-center mb-4">
-                            <img src="../assets/images/logo.jpeg"
-                                alt="Green Agric Logo"
-                                class="mb-3"
-                                style="height:70px; width:auto;">
+                            <a href="../">
+                                <img src="../assets/images/logo.jpeg"
+                                    alt="Green Agric Logo"
+                                    class="mb-3"
+                                    style="height:80px; width:auto; border-radius: 10px;">
+                            </a>
                             <h2 class="card-title fw-bold text-success">Join Green Agric</h2>
                             <p class="text-muted">Create your account to start buying and selling agricultural products</p>
                         </div>
@@ -252,37 +298,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         <form method="POST" action="" id="registrationForm" novalidate>
                             <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="first_name" class="form-label fw-semibold">
-                                            <i class=" text-success me-1"></i>First Name
-                                        </label>
-                                        <input type="text" 
-                                               class="form-control form-control-lg" 
-                                               id="first_name" 
-                                               name="first_name" 
-                                               value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>" 
-                                               required>
-                                    </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="first_name" class="form-label fw-semibold">
+                                        <i class="bi bi-person text-success me-1"></i>First Name
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control form-control-lg" 
+                                           id="first_name" 
+                                           name="first_name" 
+                                           value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>" 
+                                           required>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="last_name" class="form-label fw-semibold">
-                                            <i class="text-success me-1"></i>Last Name
-                                        </label>
-                                        <input type="text" 
-                                               class="form-control form-control-lg" 
-                                               id="last_name" 
-                                               name="last_name" 
-                                               value="<?php echo htmlspecialchars($_POST['last_name'] ?? ''); ?>" 
-                                               required>
-                                    </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="last_name" class="form-label fw-semibold">
+                                        <i class="bi bi-person text-success me-1"></i>Last Name
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control form-control-lg" 
+                                           id="last_name" 
+                                           name="last_name" 
+                                           value="<?php echo htmlspecialchars($_POST['last_name'] ?? ''); ?>" 
+                                           required>
                                 </div>
                             </div>
 
                             <div class="mb-3">
                                 <label for="email" class="form-label fw-semibold">
-                                    <i class="text-success me-1"></i>Email Address
+                                    <i class="bi bi-envelope text-success me-1"></i>Email Address
                                 </label>
                                 <div class="position-relative">
                                     <input type="email" 
@@ -296,30 +338,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                            required>
                                     <span class="verification-badge" id="emailValidationIcon"></span>
                                 </div>
+                                <div id="emailHelp" class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>We'll send a verification link to this email
+                                </div>
                             </div>
 
                             <div class="mb-3">
                                 <label for="phone" class="form-label fw-semibold">
-                                    <i class="text-success me-1"></i>Phone Number
+                                    <i class="bi bi-telephone text-success me-1"></i>Phone Number
                                 </label>
                                 <input type="tel" 
                                        class="form-control form-control-lg" 
                                        id="phone" 
                                        name="phone" 
                                        value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>" 
-                                       placeholder="eg.,08012345678"
+                                       placeholder="eg., 08012345678"
                                        required>
                                 <div class="form-text">
-                                    <i class="me-1"></i>
+                                    <i class="bi bi-info-circle me-1"></i>
                                     Enter your Nigerian phone number
                                 </div>
                             </div>
 
                             <div class="mb-4">
                                 <label class="form-label fw-semibold">
-                                    I want to join as:
+                                    <i class="bi bi-person-badge text-success me-1"></i>I want to join as:
                                 </label>
-                                <div class="role-selector d-flex gap-4">
+                                <div class="role-selector d-flex gap-4 mt-2">
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="role" id="role_buyer" 
                                                value="buyer" <?php echo ($_POST['role'] ?? 'buyer') === 'buyer' ? 'checked' : ''; ?>>
@@ -339,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             <div class="mb-3">
                                 <label for="password" class="form-label fw-semibold">
-                                    <i class="text-success me-1"></i>Password
+                                    <i class="bi bi-lock text-success me-1"></i>Password
                                 </label>
                                 <div class="password-input-group">
                                     <input type="password" 
@@ -375,7 +420,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             <div class="mb-4">
                                 <label for="confirm_password" class="form-label fw-semibold">
-                                    <i class="text-success me-1"></i>Confirm Password
+                                    <i class="bi bi-lock text-success me-1"></i>Confirm Password
                                 </label>
                                 <div class="password-input-group">
                                     <input type="password" 
@@ -401,15 +446,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
 
                             <button type="submit" class="btn btn-success w-100 py-3 mb-3 fw-semibold" id="submitBtn">
-                                <i class="me-2"></i>Create Account
+                                <i class="bi bi-person-plus me-2"></i>Create Account
                             </button>
-<hr>
+
+                            <div class="divider my-4">
+                                <span class="px-3 text-muted small">or</span>
+                            </div>
+
                             <div class="text-center">
                                 <p class="mb-0">
                                     Already have an account? 
                                     <a href="login.php" class="text-success text-decoration-none fw-semibold">
-                                        Sign in 
+                                        Sign in <i class="bi bi-arrow-right"></i>
                                     </a>
+                                </p>
+                            </div>
+                            
+                            <div class="text-center mt-4">
+                                <p class="small text-muted">
+                                    <i class="bi bi-shield-check text-success me-1"></i>
+                                    Secure registration powered by Green Agric
                                 </p>
                             </div>
                         </form>
@@ -438,41 +494,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Real-time email validation
-        document.getElementById('email').addEventListener('input', function(e) {
-            const email = this.value;
-            const icon = document.getElementById('emailValidationIcon');
-            const emailHelp = document.getElementById('emailHelp');
-            
-            if (email.length === 0) {
-                icon.innerHTML = '';
-                this.classList.remove('is-valid', 'is-invalid');
-                emailHelp.innerHTML = '<i class="bi bi-info-circle me-1"></i>We\'ll send a verification link to this email';
-                emailHelp.classList.remove('text-success', 'text-danger');
-            } else if (isValidEmail(email)) {
-                icon.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
-                this.classList.add('is-valid');
-                this.classList.remove('is-invalid');
-                emailHelp.innerHTML = '<i class="bi bi-check-circle me-1 text-success"></i>Valid email address';
-                emailHelp.classList.add('text-success');
-                emailHelp.classList.remove('text-danger');
-            } else {
-                icon.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger"></i>';
-                this.classList.add('is-invalid');
-                this.classList.remove('is-valid');
-                emailHelp.innerHTML = '<i class="bi bi-exclamation-circle me-1 text-danger"></i>Please enter a valid email address';
-                emailHelp.classList.add('text-danger');
-                emailHelp.classList.remove('text-success');
-            }
-        });
+        const emailInput = document.getElementById('email');
+        if (emailInput) {
+            emailInput.addEventListener('input', function(e) {
+                const email = this.value;
+                const icon = document.getElementById('emailValidationIcon');
+                const emailHelp = document.getElementById('emailHelp');
+                
+                if (email.length === 0) {
+                    icon.innerHTML = '';
+                    this.classList.remove('is-valid', 'is-invalid');
+                    if (emailHelp) {
+                        emailHelp.innerHTML = '<i class="bi bi-info-circle me-1"></i>We\'ll send a verification link to this email';
+                        emailHelp.classList.remove('text-success', 'text-danger');
+                    }
+                } else if (isValidEmail(email)) {
+                    icon.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+                    this.classList.add('is-valid');
+                    this.classList.remove('is-invalid');
+                    if (emailHelp) {
+                        emailHelp.innerHTML = '<i class="bi bi-check-circle me-1 text-success"></i>Valid email address';
+                        emailHelp.classList.add('text-success');
+                        emailHelp.classList.remove('text-danger');
+                    }
+                } else {
+                    icon.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger"></i>';
+                    this.classList.add('is-invalid');
+                    this.classList.remove('is-valid');
+                    if (emailHelp) {
+                        emailHelp.innerHTML = '<i class="bi bi-exclamation-circle me-1 text-danger"></i>Please enter a valid email address';
+                        emailHelp.classList.add('text-danger');
+                        emailHelp.classList.remove('text-success');
+                    }
+                }
+            });
+        }
 
         // Password strength checker
-        document.getElementById('password').addEventListener('input', function(e) {
-            const password = this.value;
-            checkPasswordStrength(password);
-            checkPasswordMatch();
-        });
+        const passwordInput = document.getElementById('password');
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function(e) {
+                const password = this.value;
+                checkPasswordStrength(password);
+                checkPasswordMatch();
+            });
+        }
 
-        document.getElementById('confirm_password').addEventListener('input', checkPasswordMatch);
+        const confirmInput = document.getElementById('confirm_password');
+        if (confirmInput) {
+            confirmInput.addEventListener('input', checkPasswordMatch);
+        }
 
         function isValidEmail(email) {
             const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -521,88 +592,105 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 barColor = 'bg-success';
             }
             
-            bar.style.width = strengthPercent + '%';
-            bar.className = 'progress-bar strength-bar ' + barColor;
-            text.textContent = strengthText;
-            text.className = 'strength-text text-' + (barColor.replace('bg-', '') || 'muted');
+            if (bar) {
+                bar.style.width = strengthPercent + '%';
+                bar.className = 'progress-bar strength-bar ' + barColor;
+            }
+            if (text) {
+                text.textContent = strengthText;
+                text.className = 'strength-text text-' + (barColor.replace('bg-', '') || 'muted');
+            }
         }
 
         function updateRequirement(elementId, isValid) {
             const element = document.getElementById(elementId);
+            if (!element) return;
+            
             const icon = element.querySelector('i');
             
             if (isValid) {
                 element.classList.remove('invalid');
                 element.classList.add('valid');
-                icon.classList.remove('bi-x-circle');
-                icon.classList.add('bi-check-circle');
+                if (icon) {
+                    icon.classList.remove('bi-x-circle');
+                    icon.classList.add('bi-check-circle');
+                }
             } else {
                 element.classList.remove('valid');
                 element.classList.add('invalid');
-                icon.classList.remove('bi-check-circle');
-                icon.classList.add('bi-x-circle');
+                if (icon) {
+                    icon.classList.remove('bi-check-circle');
+                    icon.classList.add('bi-x-circle');
+                }
             }
         }
 
         function checkPasswordMatch() {
-            const password = document.getElementById('password').value;
-            const confirm = document.getElementById('confirm_password').value;
+            const password = document.getElementById('password');
+            const confirm = document.getElementById('confirm_password');
             const feedback = document.getElementById('passwordMatchFeedback');
             
-            if (confirm.length > 0) {
-                if (password === confirm) {
-                    document.getElementById('confirm_password').classList.add('is-valid');
-                    document.getElementById('confirm_password').classList.remove('is-invalid');
+            if (!password || !confirm || !feedback) return;
+            
+            if (confirm.value.length > 0) {
+                if (password.value === confirm.value) {
+                    confirm.classList.add('is-valid');
+                    confirm.classList.remove('is-invalid');
                     feedback.style.display = 'none';
                 } else {
-                    document.getElementById('confirm_password').classList.add('is-invalid');
-                    document.getElementById('confirm_password').classList.remove('is-valid');
+                    confirm.classList.add('is-invalid');
+                    confirm.classList.remove('is-valid');
                     feedback.style.display = 'block';
                 }
             } else {
-                document.getElementById('confirm_password').classList.remove('is-valid', 'is-invalid');
+                confirm.classList.remove('is-valid', 'is-invalid');
                 feedback.style.display = 'none';
             }
         }
 
         // Form validation before submit
-        document.getElementById('registrationForm').addEventListener('submit', function(e) {
-            const password = document.getElementById('password').value;
-            const confirm = document.getElementById('confirm_password').value;
-            const email = document.getElementById('email').value;
-            const terms = document.getElementById('terms').checked;
-            
-            if (password !== confirm) {
-                e.preventDefault();
-                alert('Passwords do not match!');
-                return;
-            }
-            
-            if (!isValidEmail(email)) {
-                e.preventDefault();
-                alert('Please enter a valid email address!');
-                return;
-            }
-            
-            if (!terms) {
-                e.preventDefault();
-                alert('You must agree to the Terms of Service and Privacy Policy!');
-                return;
-            }
-            
-            const requirements = [
-                password.length >= 8,
-                /[A-Z]/.test(password),
-                /[a-z]/.test(password),
-                /[0-9]/.test(password)
-            ];
-            
-            if (!requirements.every(Boolean)) {
-                e.preventDefault();
-                alert('Please meet all password requirements!');
-                return;
-            }
-        });
+        const registrationForm = document.getElementById('registrationForm');
+        if (registrationForm) {
+            registrationForm.addEventListener('submit', function(e) {
+                const password = document.getElementById('password');
+                const confirm = document.getElementById('confirm_password');
+                const email = document.getElementById('email');
+                const terms = document.getElementById('terms');
+                
+                if (!password || !confirm || !email || !terms) return;
+                
+                if (password.value !== confirm.value) {
+                    e.preventDefault();
+                    alert('Passwords do not match!');
+                    return;
+                }
+                
+                if (!isValidEmail(email.value)) {
+                    e.preventDefault();
+                    alert('Please enter a valid email address!');
+                    return;
+                }
+                
+                if (!terms.checked) {
+                    e.preventDefault();
+                    alert('You must agree to the Terms of Service and Privacy Policy!');
+                    return;
+                }
+                
+                const requirements = [
+                    password.value.length >= 8,
+                    /[A-Z]/.test(password.value),
+                    /[a-z]/.test(password.value),
+                    /[0-9]/.test(password.value)
+                ];
+                
+                if (!requirements.every(Boolean)) {
+                    e.preventDefault();
+                    alert('Please meet all password requirements!');
+                    return;
+                }
+            });
+        }
     </script>
 </body>
 </html>

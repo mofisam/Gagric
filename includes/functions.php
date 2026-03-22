@@ -185,3 +185,35 @@ function logActivity($user_id, $action, $details = null) {
         [$user_id, $action, $details, $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT'] ?? '']
     );
 }
+
+/**
+ * Create a URL-friendly slug from a string
+ * 
+ * @param string $string The string to convert to slug
+ * @param int $max_length Maximum length of the slug (default: 100)
+ * @return string The generated slug
+ */
+function createSlug($string, $max_length = 100) {
+    // Convert to lowercase
+    $slug = strtolower($string);
+    
+    // Remove special characters and replace spaces with hyphens
+    $slug = preg_replace('/[^a-z0-9\s-]/', '', $slug);
+    $slug = preg_replace('/[\s-]+/', '-', $slug);
+    
+    // Trim hyphens from beginning and end
+    $slug = trim($slug, '-');
+    
+    // Limit length
+    if (strlen($slug) > $max_length) {
+        $slug = substr($slug, 0, $max_length);
+        $slug = preg_replace('/-[^-]*$/', '', $slug); // Remove last partial word
+    }
+    
+    // If slug is empty, generate a random one
+    if (empty($slug)) {
+        $slug = 'product-' . uniqid();
+    }
+    
+    return $slug;
+}

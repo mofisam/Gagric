@@ -152,8 +152,12 @@ $out_of_stock_count = $db->fetchOne("
 
 // Calculate today's orders
 $today_orders = $db->fetchOne("
-    SELECT COUNT(*) as count FROM order_items 
-    WHERE seller_id = ? AND DATE(created_at) = CURDATE()
+    SELECT COUNT(*) as count 
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id
+    WHERE oi.seller_id = ?
+    AND o.created_at >= CURDATE()
+    AND o.created_at < CURDATE() + INTERVAL 1 DAY
 ", [$seller_id])['count'] ?? 0;
 
 // Pass stats to sidebar
@@ -377,7 +381,7 @@ $page_css = 'dashboard.css';
                                                 <td>
                                                     <div class="d-flex align-items-center">
                                                         <?php if ($order['product_image']): ?>
-                                                            <img src="<?php echo BASE_URL . '/uploads/products/' . $order['product_image']; ?>" 
+                                                            <img src="<?php echo BASE_URL . '/assets/uploads/products/' . $order['product_image']; ?>" 
                                                                  alt="<?php echo htmlspecialchars($order['product_name']); ?>"
                                                                  class="rounded me-3" 
                                                                  style="width: 40px; height: 40px; object-fit: cover;">
@@ -516,7 +520,7 @@ $page_css = 'dashboard.css';
                                         <div class="flex-grow-1 ms-3">
                                             <div class="d-flex align-items-center">
                                                 <?php if ($product['primary_image']): ?>
-                                                    <img src="<?php echo BASE_URL . '/uploads/products/' . $product['primary_image']; ?>" 
+                                                    <img src="<?php echo BASE_URL . '/assets/uploads/products/' . $product['primary_image']; ?>" 
                                                          alt="<?php echo htmlspecialchars($product['name']); ?>"
                                                          class="rounded me-2" 
                                                          style="width: 30px; height: 30px; object-fit: cover;">
