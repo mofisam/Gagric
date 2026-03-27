@@ -44,7 +44,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($user->role === 'seller') {
                 header('Location: ../seller/dashboard.php');
             } else {
-                header('Location: ../index.php');
+                $redirect = $_GET['redirect'] ?? '../index.php';
+
+                // Append sync_cart=1
+                if (strpos($redirect, '?') !== false) {
+                    $redirect .= '&sync_cart=1';
+                } else {
+                    $redirect .= '?sync_cart=1';
+                }
+
+                header("Location: $redirect");
+                exit;
             }
             exit;
         } else {
