@@ -12,6 +12,16 @@ $subtotal = 0;
 if (isLoggedIn()) {
     $user_id = getCurrentUserId();
     
+    // 🔥 NEW: Auto-sync guest cart items when visiting cart page
+    $synced = false;
+    if (isset($_COOKIE['greenagric_cart']) || isset($_SESSION['guest_cart_unsynced'])) {
+        $synced = syncGuestCartToDatabase($user_id, $db);
+        if ($synced) {
+            // Clear the flag so we don't sync again on every page load
+            unset($_SESSION['guest_cart_unsynced']);
+        }
+    }
+    
     // Get cart items from database
     $cart_items = $db->fetchAll("
         SELECT 
@@ -39,10 +49,19 @@ if (isLoggedIn()) {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['update'])) {
             foreach ($_POST['quantities'] as $product_id => $quantity) {
+                $product_id = (int)$product_id;
+                $quantity = (int)$quantity;
+                
                 if ($quantity <= 0) {
                     $db->query("DELETE FROM cart WHERE user_id = ? AND product_id = ?", 
                               [$user_id, $product_id]);
                 } else {
+                    // Validate stock before updating
+                    $stock = $db->fetchOne("SELECT stock_quantity FROM products WHERE id = ?", [$product_id]);
+                    if ($stock && $quantity > $stock['stock_quantity']) {
+                        $quantity = $stock['stock_quantity'];
+                        setFlashMessage("Quantity adjusted to available stock for one or more items", 'warning');
+                    }
                     $db->query("UPDATE cart SET quantity = ? WHERE user_id = ? AND product_id = ?", 
                               [$quantity, $user_id, $product_id]);
                 }
@@ -51,13 +70,19 @@ if (isLoggedIn()) {
             header('Location: view-cart.php');
             exit;
         } elseif (isset($_POST['remove'])) {
-            $product_id = $_POST['remove'];
+            $product_id = (int)$_POST['remove'];
             $db->query("DELETE FROM cart WHERE user_id = ? AND product_id = ?", [$user_id, $product_id]);
             
-            // Also remove from localStorage
+            // Also remove from localStorage via JavaScript
             echo '<script>
                 if (typeof cartManager !== "undefined") {
                     cartManager.removeFromCart(' . $product_id . ');
+                }
+                if (localStorage.getItem("greenagric_cart")) {
+                    let cart = JSON.parse(localStorage.getItem("greenagric_cart") || "[]");
+                    cart = cart.filter(item => item.productId != ' . $product_id . ');
+                    localStorage.setItem("greenagric_cart", JSON.stringify(cart));
+                    if (typeof updateCartCount === "function") updateCartCount();
                 }
             </script>';
             
@@ -72,6 +97,8 @@ if (isLoggedIn()) {
                 if (typeof cartManager !== "undefined") {
                     cartManager.clearCart();
                 }
+                localStorage.removeItem("greenagric_cart");
+                if (typeof updateCartCount === "function") updateCartCount();
             </script>';
             
             setFlashMessage('Cart cleared successfully', 'success');
@@ -110,6 +137,14 @@ include '../../includes/header.php';
             <a href="../../auth/login.php?redirect=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>" class="alert-link">
                 Login
             </a> to save your cart and access it from any device.
+        </div>
+    <?php endif; ?>
+    
+    <?php if (isLoggedIn() && $synced): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-arrow-repeat me-2"></i>
+            Your guest cart items have been synced to your account!
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     <?php endif; ?>
     
@@ -157,10 +192,10 @@ include '../../includes/header.php';
                                                                 <?php endif; ?>
                                                             </div>
                                                         </div>
-                                                    </td>
+                                                    </div>
                                                     <td>
                                                         <h6 class="mb-0"><?php echo formatCurrency($item['price_per_unit']); ?></h6>
-                                                    </td>
+                                                    </div>
                                                     <td>
                                                         <div class="input-group" style="width: 120px;">
                                                             <input type="number" class="form-control quantity-input" 
@@ -169,18 +204,18 @@ include '../../includes/header.php';
                                                                    min="1" max="<?php echo $item['stock_quantity']; ?>"
                                                                    data-product-id="<?php echo $item['product_id']; ?>">
                                                         </div>
-                                                    </td>
+                                                    </div>
                                                     <td>
                                                         <h6 class="mb-0 text-success item-total">
                                                             <?php echo formatCurrency($item_total); ?>
                                                         </h6>
-                                                    </td>
+                                                    </div>
                                                     <td>
                                                         <button type="button" class="btn btn-sm btn-outline-danger remove-item" 
                                                                 data-product-id="<?php echo $item['product_id']; ?>">
                                                             <i class="bi bi-trash"></i>
                                                         </button>
-                                                    </td>
+                                                    </div>
                                                 </tr>
                                             <?php endforeach; ?>
                                         </tbody>
@@ -195,7 +230,7 @@ include '../../includes/header.php';
                                         <button type="button" id="clear-cart" class="btn btn-outline-danger me-2">
                                             <i class="bi bi-trash me-1"></i> Clear Cart
                                         </button>
-                                        <button name="update" class="btn btn-success">
+                                        <button type="submit" name="update" class="btn btn-success">
                                             <i class="bi bi-arrow-clockwise me-1"></i> Update Cart
                                         </button>
                                     </div>
@@ -327,19 +362,36 @@ document.addEventListener('DOMContentLoaded', function() {
     // For guest users
     document.getElementById('guest-clear-cart')?.addEventListener('click', function() {
         if (confirm('Are you sure you want to clear your cart?')) {
-            cartManager.clearCart();
+            if (typeof cartManager !== 'undefined') {
+                cartManager.clearCart();
+            } else {
+                localStorage.removeItem('greenagric_cart');
+            }
             displayGuestCart();
+            if (typeof updateCartCount === 'function') updateCartCount();
         }
     });
     
-    // Add sync button if user just logged in with localStorage items
-    <?php if (isLoggedIn() && isset($_GET['sync_cart']) && $_GET['sync_cart'] == '1'): ?>
-        syncCartWithDatabase();
+    // Auto-sync for logged-in users who might have guest cart data
+    <?php if (isLoggedIn()): ?>
+        const localCart = localStorage.getItem('greenagric_cart');
+        if (localCart && localCart !== '[]') {
+            const cartItems = JSON.parse(localCart);
+            if (cartItems.length > 0) {
+                syncCartWithDatabase();
+            }
+        }
     <?php endif; ?>
 });
 
 function displayGuestCart() {
-    const cart = cartManager.getCart();
+    // Ensure cartManager exists or use localStorage directly
+    let cart;
+    if (typeof cartManager !== 'undefined' && cartManager.getCart) {
+        cart = cartManager.getCart();
+    } else {
+        cart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+    }
     
     if (cart.length === 0) {
         document.getElementById('cart-container').innerHTML = `
@@ -372,30 +424,30 @@ function displayGuestCart() {
                     <img src="../../assets/images/placeholder-product.jpg" 
                          class="img-thumbnail me-3" style="width: 80px; height: 80px; object-fit: cover;">
                     <div>
-                        <h6 class="mb-1">${item.productName}</h6>
-                        <p class="text-muted mb-0">Unit: ${item.productUnit}</p>
+                        <h6 class="mb-1">${escapeHtml(item.productName)}</h6>
+                        <p class="text-muted mb-0">Unit: ${escapeHtml(item.productUnit)}</p>
                     </div>
                 </div>
-            </td>
+            </div>
             <td>
                 <h6 class="mb-0">₦${item.productPrice.toLocaleString('en-NG')}</h6>
-            </td>
+            </div>
             <td>
                 <div class="input-group" style="width: 120px;">
                     <input type="number" class="form-control guest-quantity" 
                            value="${item.quantity}" min="1"
                            data-product-id="${item.productId}">
                 </div>
-            </td>
+            </div>
             <td>
                 <h6 class="mb-0 text-success">₦${itemTotal.toLocaleString('en-NG')}</h6>
-            </td>
+            </div>
             <td>
                 <button type="button" class="btn btn-sm btn-outline-danger guest-remove-item" 
                         data-product-id="${item.productId}">
                     <i class="bi bi-trash"></i>
                 </button>
-            </td>
+            </div>
         `;
         itemsContainer.appendChild(row);
     });
@@ -404,8 +456,15 @@ function displayGuestCart() {
     document.querySelectorAll('.guest-remove-item').forEach(button => {
         button.addEventListener('click', function() {
             const productId = this.dataset.productId;
-            cartManager.removeFromCart(productId);
+            if (typeof cartManager !== 'undefined') {
+                cartManager.removeFromCart(productId);
+            } else {
+                let cart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+                cart = cart.filter(item => item.productId != productId);
+                localStorage.setItem('greenagric_cart', JSON.stringify(cart));
+            }
             displayGuestCart();
+            if (typeof updateCartCount === 'function') updateCartCount();
         });
     });
     
@@ -413,7 +472,16 @@ function displayGuestCart() {
         input.addEventListener('change', function() {
             const productId = this.dataset.productId;
             const quantity = parseInt(this.value);
-            cartManager.updateQuantity(productId, quantity);
+            if (typeof cartManager !== 'undefined') {
+                cartManager.updateQuantity(productId, quantity);
+            } else {
+                let cart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+                const index = cart.findIndex(item => item.productId == productId);
+                if (index !== -1) {
+                    cart[index].quantity = quantity;
+                    localStorage.setItem('greenagric_cart', JSON.stringify(cart));
+                }
+            }
             displayGuestCart();
         });
     });
@@ -467,6 +535,16 @@ function displayGuestCart() {
     }
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
 function removeFromCart(productId) {
     <?php if (isLoggedIn()): ?>
         // Check if item exists in localStorage (for recently logged-in users)
@@ -488,7 +566,13 @@ function removeFromCart(productId) {
         }
     <?php else: ?>
         // For guests, use cart manager
-        cartManager.removeFromCart(productId);
+        if (typeof cartManager !== 'undefined') {
+            cartManager.removeFromCart(productId);
+        } else {
+            let cart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+            cart = cart.filter(item => item.productId != productId);
+            localStorage.setItem('greenagric_cart', JSON.stringify(cart));
+        }
         displayGuestCart();
     <?php endif; ?>
 }
@@ -504,7 +588,16 @@ function updateQuantity(productId, quantity) {
         }
     <?php else: ?>
         // For guests, use cart manager
-        cartManager.updateQuantity(productId, quantity);
+        if (typeof cartManager !== 'undefined') {
+            cartManager.updateQuantity(productId, quantity);
+        } else {
+            let cart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+            const index = cart.findIndex(item => item.productId == productId);
+            if (index !== -1) {
+                cart[index].quantity = quantity;
+                localStorage.setItem('greenagric_cart', JSON.stringify(cart));
+            }
+        }
         displayGuestCart();
     <?php endif; ?>
 }
@@ -525,18 +618,42 @@ function clearCart() {
             if (typeof cartManager !== 'undefined') {
                 cartManager.clearCart();
             }
+            localStorage.removeItem('greenagric_cart');
         }
     <?php else: ?>
         // For guests, use cart manager
-        cartManager.clearCart();
+        if (typeof cartManager !== 'undefined') {
+            cartManager.clearCart();
+        } else {
+            localStorage.removeItem('greenagric_cart');
+        }
         displayGuestCart();
     <?php endif; ?>
 }
 
 // Function to sync localStorage cart with database after login
 async function syncCartWithDatabase() {
-    const localCart = cartManager.getCart();
+    let localCart;
+    if (typeof cartManager !== 'undefined' && cartManager.getCart) {
+        localCart = cartManager.getCart();
+    } else {
+        localCart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+    }
+    
     if (localCart.length === 0) return;
+    
+    // Show loading indicator
+    const cartContainer = document.getElementById('cart-container');
+    if (cartContainer) {
+        cartContainer.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Syncing your cart...</span>
+                </div>
+                <p class="mt-3">Syncing your guest cart items...</p>
+            </div>
+        `;
+    }
     
     try {
         const response = await fetch('../../api/cart/sync.php', {
@@ -553,19 +670,93 @@ async function syncCartWithDatabase() {
         
         if (data.success) {
             // Clear localStorage after successful sync
-            cartManager.clearCart();
-            // Reload to show synced cart
-            window.location.href = window.location.pathname;
+            if (typeof cartManager !== 'undefined') {
+                cartManager.clearCart();
+            }
+            localStorage.removeItem('greenagric_cart');
+            
+            // Show success message and reload
+            if (typeof updateCartCount === 'function') updateCartCount();
+            window.location.reload();
         } else {
             console.error('Failed to sync cart:', data.error);
+            // Show error but still reload to show database cart
+            window.location.reload();
         }
     } catch (error) {
         console.error('Error syncing cart:', error);
+        window.location.reload();
     }
 }
+
+function updateCartCount() {
+    if (typeof cartManager !== 'undefined' && cartManager.updateCartCount) {
+        cartManager.updateCartCount();
+    } else {
+        const cart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+        const cartCount = document.getElementById('cart-count');
+        if (cartCount) {
+            cartCount.textContent = cart.length;
+        }
+    }
+}
+
+// Initialize cart count on page load
+updateCartCount();
 </script>
 
 <?php 
 $page_js = 'cart.js';
 include '../../includes/footer.php'; 
+
+// 🔥 NEW: Helper function to sync guest cart to database
+function syncGuestCartToDatabase($user_id, $db) {
+    $synced_count = 0;
+    
+    // Get guest cart from cookie or localStorage via POST/GET
+    // Since we can't directly access localStorage from PHP, we check for:
+    // 1. A sync request via POST (from JavaScript)
+    // 2. Or we can set a session flag when user logs in with unsynced items
+    
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sync_guest_cart'])) {
+        $guest_cart = json_decode($_POST['guest_cart_data'], true);
+        if (is_array($guest_cart) && !empty($guest_cart)) {
+            foreach ($guest_cart as $item) {
+                $product_id = (int)$item['productId'];
+                $quantity = (int)$item['quantity'];
+                
+                if ($product_id <= 0 || $quantity <= 0) continue;
+                
+                // Check if product exists and is approved
+                $product = $db->fetchOne("SELECT id, stock_quantity FROM products WHERE id = ? AND status = 'approved'", [$product_id]);
+                if (!$product) continue;
+                
+                // Check if item already in cart
+                $existing = $db->fetchOne("SELECT id, quantity FROM cart WHERE user_id = ? AND product_id = ?", [$user_id, $product_id]);
+                
+                if ($existing) {
+                    // Update quantity (add to existing)
+                    $new_quantity = min($existing['quantity'] + $quantity, $product['stock_quantity']);
+                    $db->query("UPDATE cart SET quantity = ? WHERE user_id = ? AND product_id = ?", 
+                              [$new_quantity, $user_id, $product_id]);
+                } else {
+                    // Add new item
+                    $db->query("INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)", 
+                              [$user_id, $product_id, min($quantity, $product['stock_quantity'])]);
+                }
+                $synced_count++;
+            }
+            return $synced_count > 0;
+        }
+    }
+    
+    // Alternative: Check for session flag from login
+    if (isset($_SESSION['has_guest_cart']) && $_SESSION['has_guest_cart'] === true) {
+        // The JavaScript will handle the sync via fetch API
+        unset($_SESSION['has_guest_cart']);
+        return false; // JavaScript will do the actual sync
+    }
+    
+    return false;
+}
 ?>
