@@ -7,6 +7,7 @@ require_once '../classes/Database.php';
 
 $db = new Database();
 $seller_id = $_SESSION['user_id'];
+$current_date = new DateTime();
 
 // Get seller profile info for sidebar
 $seller_profile = $db->fetchOne("
@@ -22,6 +23,124 @@ $seller_profile = $db->fetchOne("
     WHERE sp.user_id = ?
     GROUP BY sp.id
 ", [$seller_id]);
+
+// Get active subscription information
+$subscription = $db->fetchOne("
+    SELECT 
+        ss.*,
+        p.name as plan_name,
+        p.price as plan_price,
+        p.duration_days as plan_duration,
+        p.features as plan_features,
+        c.code as coupon_code,
+        c.discount_type,
+        c.discount_value
+    FROM seller_subscriptions ss
+    LEFT JOIN subscription_plans p ON ss.plan_id = p.id
+    LEFT JOIN coupon_codes c ON ss.coupon_code_id = c.id
+    WHERE ss.seller_id = ? AND ss.is_active = 1
+    ORDER BY ss.id DESC
+    LIMIT 1
+", [$seller_id]);
+
+// Get free trial settings
+$trial_settings = $db->fetchOne("SELECT * FROM free_trial_settings WHERE id = 1");
+
+// Check subscription status
+$has_active_subscription = false;
+$subscription_status = 'no_subscription';
+$days_remaining = 0;
+$is_trial = false;
+$subscription_warning = null;
+
+if ($subscription) {
+    $current_date = new DateTime();
+    $end_date = new DateTime($subscription['end_date']);
+    $days_remaining = $current_date->diff($end_date)->days;
+    
+    if ($subscription['end_date'] > date('Y-m-d H:i:s')) {
+        $has_active_subscription = true;
+        $subscription_status = $subscription['subscription_type'] == 'free_trial' ? 'trial' : 'active';
+        $is_trial = $subscription['subscription_type'] == 'free_trial';
+        
+        // Check for expiring soon (within 7 days)
+        if ($days_remaining <= 7 && $days_remaining > 0) {
+            $subscription_warning = "Your subscription expires in $days_remaining days. Renew now to avoid service interruption.";
+        } elseif ($days_remaining <= 0) {
+            $subscription_status = 'expired';
+            $has_active_subscription = false;
+            $subscription_warning = "Your subscription has expired. Please renew to continue selling.";
+        }
+    } else {
+        $subscription_status = 'expired';
+        $subscription_warning = "Your subscription has expired. Please renew to continue selling.";
+    }
+} elseif ($trial_settings && $trial_settings['is_enabled']) {
+    // Check if seller has ever had a subscription
+    $has_trial = $db->fetchOne("
+        SELECT COUNT(*) as count FROM seller_subscriptions 
+        WHERE seller_id = ? AND subscription_type = 'free_trial'
+    ", [$seller_id])['count'];
+    
+    if ($has_trial == 0) {
+        // Auto-create free trial for new seller
+        $trial_start = date('Y-m-d H:i:s');
+        $trial_end = date('Y-m-d H:i:s', strtotime("+{$trial_settings['duration_days']} days"));
+        
+        $db->insert('seller_subscriptions', [
+            'seller_id' => $seller_id,
+            'subscription_type' => 'free_trial',
+            'start_date' => $trial_start,
+            'end_date' => $trial_end,
+            'is_active' => 1,
+            'payment_status' => 'paid',
+            'features_snapshot' => $trial_settings['features']
+        ]);
+        
+        // Refresh subscription data
+        $subscription = $db->fetchOne("
+            SELECT ss.*, NULL as plan_name, NULL as plan_price
+            FROM seller_subscriptions ss
+            WHERE ss.seller_id = ? AND ss.is_active = 1
+            ORDER BY ss.id DESC LIMIT 1
+        ", [$seller_id]);
+        
+        if ($subscription) {
+            $has_active_subscription = true;
+            $subscription_status = 'trial';
+            $is_trial = true;
+            $end_date = new DateTime($subscription['end_date']);
+            $days_remaining = $current_date->diff($end_date)->days;
+        }
+    }
+}
+
+// Get available subscription plans for upgrade
+$available_plans = $db->fetchAll("
+    SELECT * FROM subscription_plans 
+    WHERE is_active = 1 
+    ORDER BY price ASC
+");
+
+// Get subscription limits
+$max_products_limit = null;
+$max_orders_limit = null;
+
+if ($is_trial && $trial_settings) {
+    $max_products_limit = $trial_settings['max_products'];
+    $max_orders_limit = $trial_settings['max_orders'];
+} elseif ($subscription && $subscription['plan_features']) {
+    $plan_features = json_decode($subscription['plan_features'], true);
+    // Extract limits from features if needed
+}
+
+// Get current product count
+$current_products_count = $db->fetchOne("
+    SELECT COUNT(*) as count FROM products WHERE seller_id = ?
+", [$seller_id])['count'];
+
+// Check if product limit is reached
+$product_limit_reached = $max_products_limit && $current_products_count >= $max_products_limit;
 
 // Get current month period
 $current_month = date('Y-m-01 00:00:00');
@@ -214,9 +333,108 @@ $page_css = 'dashboard.css';
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </div>
-                    <a href="products/add-product.php" class="btn btn-sm btn-success">
-                        <i class="bi bi-plus-circle me-1"></i> Add Product
-                    </a>
+                    <?php if (!$product_limit_reached && $has_active_subscription): ?>
+                        <a href="products/add-product.php" class="btn btn-sm btn-success">
+                            <i class="bi bi-plus-circle me-1"></i> Add Product
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Subscription Status Banner -->
+            <?php if ($subscription_warning): ?>
+                <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                        <div>
+                            <strong>Subscription Notice:</strong> <?php echo $subscription_warning; ?>
+                        </div>
+                        <?php if ($subscription_status == 'expired' || $days_remaining <= 7): ?>
+                            <div class="ms-auto">
+                                <a href="subscription/upgrade.php" class="btn btn-warning btn-sm">
+                                    <i class="bi bi-arrow-repeat me-1"></i> Renew Now
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+
+            <!-- Product Limit Warning -->
+            <?php if ($product_limit_reached): ?>
+                <div class="alert alert-danger mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-octagon-fill fs-4 me-3"></i>
+                        <div>
+                            <strong>Product Limit Reached!</strong> 
+                            You have reached the maximum of <?php echo number_format($max_products_limit); ?> products allowed on your current plan.
+                            <a href="subscription/upgrade.php" class="alert-link">Upgrade your plan</a> to add more products.
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Subscription Info Card -->
+            <div class="row g-3 mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm bg-gradient-<?php echo $is_trial ? 'info' : ($subscription_status == 'active' ? 'success' : 'secondary'); ?> text-white">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            <?php if ($is_trial): ?>
+                                                <i class="bi bi-gift-fill fs-1"></i>
+                                            <?php elseif ($subscription_status == 'active'): ?>
+                                                <i class="bi bi-patch-check-fill fs-1"></i>
+                                            <?php else: ?>
+                                                <i class="bi bi-shop fs-1"></i>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div>
+                                            <h5 class="mb-1">
+                                                <?php if ($is_trial): ?>
+                                                    Free Trial Active
+                                                <?php elseif ($subscription_status == 'active'): ?>
+                                                    <?php echo htmlspecialchars($subscription['plan_name'] ?? 'Premium'); ?> Plan
+                                                <?php else: ?>
+                                                    No Active Subscription
+                                                <?php endif; ?>
+                                            </h5>
+                                            <p class="mb-0 opacity-75 small">
+                                                <?php if ($has_active_subscription): ?>
+                                                    Your subscription <?php echo $is_trial ? 'trial' : ''; ?> ends in 
+                                                    <strong><?php echo $days_remaining; ?> days</strong> (<?php echo date('M j, Y', strtotime($subscription['end_date'])); ?>)
+                                                    <?php if ($subscription['auto_renew']): ?>
+                                                        • Auto-renew enabled
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    Subscribe to a plan to start selling on GreenAgric
+                                                <?php endif; ?>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                                    <?php if (!$has_active_subscription): ?>
+                                        <a href="subscription/upgrade.php" class="btn btn-light btn-sm">
+                                            <i class="bi bi-star me-1"></i> View Plans
+                                        </a>
+                                    <?php elseif ($is_trial || $days_remaining <= 7): ?>
+                                        <a href="subscription/upgrade.php" class="btn btn-light btn-sm">
+                                            <i class="bi bi-arrow-repeat me-1"></i> Upgrade / Renew
+                                        </a>
+                                    <?php endif; ?>
+                                    <?php if ($subscription && !$is_trial): ?>
+                                        <a href="subscription/manage.php" class="btn btn-outline-light btn-sm">
+                                            <i class="bi bi-gear me-1"></i> Manage
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -229,7 +447,12 @@ $page_css = 'dashboard.css';
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <h6 class="card-subtitle text-muted mb-1">Total Products</h6>
-                                    <h3 class="card-title mb-0"><?php echo number_format($stats['total_products'] ?? 0); ?></h3>
+                                    <h3 class="card-title mb-0">
+                                        <?php echo number_format($stats['total_products'] ?? 0); ?>
+                                        <?php if ($max_products_limit): ?>
+                                            <small class="text-muted fs-6">/ <?php echo number_format($max_products_limit); ?></small>
+                                        <?php endif; ?>
+                                    </h3>
                                     <small class="text-success">
                                         <i class="bi bi-check-circle me-1"></i>
                                         <?php echo number_format($stats['active_products'] ?? 0); ?> active
@@ -245,6 +468,15 @@ $page_css = 'dashboard.css';
                                         <i class="bi bi-clock me-1"></i>
                                         <?php echo $stats['pending_products']; ?> pending approval
                                     </span>
+                                </div>
+                            <?php endif; ?>
+                            <?php if ($max_products_limit): ?>
+                                <div class="mt-2">
+                                    <div class="progress" style="height: 4px;">
+                                        <div class="progress-bar bg-primary" 
+                                             style="width: <?php echo min(100, ($stats['total_products'] / $max_products_limit) * 100); ?>%">
+                                        </div>
+                                    </div>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -336,6 +568,57 @@ $page_css = 'dashboard.css';
                     </div>
                 </div>
             </div>
+
+            <!-- Subscription Plans Promo (for sellers without active subscription) -->
+            <?php if (!$has_active_subscription && !empty($available_plans)): ?>
+            <div class="row g-3 mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-0">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-stars me-2 text-primary"></i>
+                                Choose a Plan to Start Selling
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <?php foreach ($available_plans as $plan): ?>
+                                    <?php $features = json_decode($plan['features'], true); ?>
+                                    <div class="col-md-4 mb-3 mb-md-0">
+                                        <div class="card h-100 border-<?php echo $plan['display_order'] == 2 ? 'primary' : 'secondary'; ?> shadow-sm">
+                                            <?php if ($plan['display_order'] == 2): ?>
+                                                <div class="card-header bg-primary text-white text-center py-2">
+                                                    <small>POPULAR CHOICE</small>
+                                                </div>
+                                            <?php endif; ?>
+                                            <div class="card-body text-center">
+                                                <h5 class="card-title"><?php echo htmlspecialchars($plan['name']); ?></h5>
+                                                <div class="mb-3">
+                                                    <span class="h2 text-success">₦<?php echo number_format($plan['price'], 2); ?></span>
+                                                    <span class="text-muted">/<?php echo $plan['duration_days']; ?> days</span>
+                                                </div>
+                                                <ul class="list-unstyled text-start small">
+                                                    <?php foreach ($features as $feature): ?>
+                                                        <li class="mb-1">
+                                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                                            <?php echo htmlspecialchars($feature); ?>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                                <a href="subscription/upgrade.php?plan=<?php echo $plan['id']; ?>" 
+                                                   class="btn btn-outline-primary w-100 mt-3">
+                                                    Subscribe Now
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <!-- Main Content Row -->
             <div class="row g-4">
@@ -588,9 +871,16 @@ $page_css = 'dashboard.css';
                         </div>
                         <div class="card-body">
                             <div class="d-grid gap-2">
-                                <a href="products/add-product.php" class="btn btn-success">
-                                    <i class="bi bi-plus-circle me-2"></i> Add New Product
-                                </a>
+                                <?php if (!$product_limit_reached && $has_active_subscription): ?>
+                                    <a href="products/add-product.php" class="btn btn-success">
+                                        <i class="bi bi-plus-circle me-2"></i> Add New Product
+                                    </a>
+                                <?php else: ?>
+                                    <button class="btn btn-secondary" disabled 
+                                            title="<?php echo $product_limit_reached ? 'Product limit reached. Upgrade to add more.' : 'No active subscription'; ?>">
+                                        <i class="bi bi-plus-circle me-2"></i> Add New Product
+                                    </button>
+                                <?php endif; ?>
                                 <a href="orders/manage-orders.php?filter=pending" class="btn btn-primary">
                                     <i class="bi bi-box-seam me-2"></i> Process Orders
                                 </a>
@@ -600,6 +890,11 @@ $page_css = 'dashboard.css';
                                 <a href="store/profile.php" class="btn btn-warning">
                                     <i class="bi bi-shop me-2"></i> Update Store Profile
                                 </a>
+                                <?php if ($has_active_subscription && !$is_trial): ?>
+                                    <a href="subscription/manage.php" class="btn btn-outline-primary">
+                                        <i class="bi bi-credit-card me-2"></i> Manage Subscription
+                                    </a>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -645,6 +940,18 @@ style.textContent = `
     .dashboard-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+    }
+    
+    .bg-gradient-info {
+        background: linear-gradient(135deg, #0dcaf0, #0b9ec0);
+    }
+    
+    .bg-gradient-success {
+        background: linear-gradient(135deg, #198754, #0d6efd);
+    }
+    
+    .bg-gradient-secondary {
+        background: linear-gradient(135deg, #6c757d, #495057);
     }
 `;
 document.head.appendChild(style);
