@@ -1,7 +1,5 @@
 <?php
 require_once '../../includes/auth.php';
-requireAdmin();
-require_once '../../includes/header.php';
 require_once '../../classes/Database.php';
 
 requireAdmin();
@@ -98,7 +96,7 @@ if (isset($_POST['update_tracking'])) {
     header("Location: order-details.php?id=$order_id");
     exit;
 }
-
+require_once '../../includes/header.php';
 $page_title = "Order Details - " . $order['order_number'];
 $page_css = 'dashboard.css';
 ?>

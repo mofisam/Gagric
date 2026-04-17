@@ -9,6 +9,104 @@ $db = new Database();
 $seller_id = $_SESSION['user_id'];
 $product_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
+// Get active subscription information
+$subscription = $db->fetchOne("
+    SELECT 
+        ss.*,
+        p.name as plan_name,
+        p.price as plan_price,
+        p.duration_days as plan_duration,
+        p.features as plan_features
+    FROM seller_subscriptions ss
+    LEFT JOIN subscription_plans p ON ss.plan_id = p.id
+    WHERE ss.seller_id = ? AND ss.is_active = 1 AND ss.end_date > NOW()
+    ORDER BY ss.id DESC LIMIT 1
+", [$seller_id]);
+
+// Get free trial settings
+$trial_settings = $db->fetchOne("SELECT * FROM free_trial_settings WHERE id = 1");
+
+// Check subscription status
+$has_active_subscription = false;
+$subscription_status = 'no_subscription';
+$is_trial = false;
+$days_remaining = 0;
+
+if ($subscription) {
+    $has_active_subscription = true;
+    $subscription_status = $subscription['subscription_type'] == 'free_trial' ? 'trial' : 'active';
+    $is_trial = $subscription['subscription_type'] == 'free_trial';
+    $current_date = new DateTime();
+    $end_date = new DateTime($subscription['end_date']);
+    $days_remaining = $current_date->diff($end_date)->days;
+} elseif ($trial_settings && $trial_settings['is_enabled']) {
+    // Check if seller has ever had a subscription
+    $has_trial = $db->fetchOne("
+        SELECT COUNT(*) as count FROM seller_subscriptions 
+        WHERE seller_id = ? AND subscription_type = 'free_trial'
+    ", [$seller_id])['count'];
+    
+    if ($has_trial == 0) {
+        // Auto-create free trial for new seller
+        $trial_start = date('Y-m-d H:i:s');
+        $trial_end = date('Y-m-d H:i:s', strtotime("+{$trial_settings['duration_days']} days"));
+        
+        $db->insert('seller_subscriptions', [
+            'seller_id' => $seller_id,
+            'subscription_type' => 'free_trial',
+            'start_date' => $trial_start,
+            'end_date' => $trial_end,
+            'is_active' => 1,
+            'payment_status' => 'paid',
+            'features_snapshot' => $trial_settings['features']
+        ]);
+        
+        $has_active_subscription = true;
+        $subscription_status = 'trial';
+        $is_trial = true;
+        $days_remaining = $trial_settings['duration_days'];
+    }
+}
+
+// Get subscription limits
+$max_products_limit = null;
+
+if ($is_trial && $trial_settings) {
+    $max_products_limit = $trial_settings['max_products'];
+} elseif ($subscription && $subscription['plan_features']) {
+    $plan_features = json_decode($subscription['plan_features'], true);
+    // Extract limits from features
+    foreach ($plan_features as $feature) {
+        if (strpos($feature, 'Up to') !== false && strpos($feature, 'products') !== false) {
+            preg_match('/Up to (\d+)/', $feature, $matches);
+            if ($matches) {
+                $max_products_limit = (int)$matches[1];
+            }
+        }
+    }
+}
+
+// Check current product count
+$current_products_count = $db->fetchOne("
+    SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status != 'rejected'
+", [$seller_id])['count'];
+
+$product_limit_reached = $max_products_limit && $current_products_count >= $max_products_limit;
+
+// If no active subscription and no trial, redirect to upgrade
+if (!$has_active_subscription) {
+    setFlashMessage('You need an active subscription to duplicate products. Please subscribe to a plan.', 'warning');
+    header('Location: ../subscription/upgrade.php');
+    exit;
+}
+
+// If product limit reached, redirect with message
+if ($product_limit_reached) {
+    setFlashMessage("You have reached the maximum of {$max_products_limit} products on your current plan. Upgrade to add more products.", 'warning');
+    header('Location: ../subscription/upgrade.php');
+    exit;
+}
+
 // Get the product to duplicate
 $original_product = $db->fetchOne("
     SELECT * FROM products 
@@ -51,149 +149,179 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Get form data
-    $name = sanitizeInput($_POST['name']);
-    $slug = createSlug($name);
-    $description = sanitizeInput($_POST['description']);
-    $short_description = sanitizeInput($_POST['short_description']);
-    $category_id = (int)$_POST['category_id'];
-    $product_type = $_POST['product_type'];
-    $variety = sanitizeInput($_POST['variety']);
-    $price_per_unit = (float)$_POST['price_per_unit'];
-    $unit = $_POST['unit'];
-    $unit_quantity = (float)$_POST['unit_quantity'];
-    $min_order_quantity = (float)$_POST['min_order_quantity'];
-    $max_order_quantity = !empty($_POST['max_order_quantity']) ? (float)$_POST['max_order_quantity'] : null;
-    $stock_quantity = (float)$_POST['stock_quantity'];
-    $low_stock_alert_level = (float)$_POST['low_stock_alert_level'];
-    $weight_kg = !empty($_POST['weight_kg']) ? (float)$_POST['weight_kg'] : null;
-    $dimensions = sanitizeInput($_POST['dimensions']);
-    $is_featured = isset($_POST['is_featured']) ? 1 : 0;
+    // Re-check subscription and limit before processing (prevent bypass)
+    // Re-fetch current product count to ensure accuracy
+    $current_count = $db->fetchOne("
+        SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status != 'rejected'
+    ", [$seller_id])['count'];
     
-    // Agricultural details
-    $grade = $_POST['grade'] ?? null;
-    $is_organic = isset($_POST['is_organic']) ? 1 : 0;
-    $is_gmo = isset($_POST['is_gmo']) ? 1 : 0;
-    $organic_certification_number = sanitizeInput($_POST['organic_certification_number']);
-    $harvest_date = !empty($_POST['harvest_date']) ? $_POST['harvest_date'] : null;
-    $expiry_date = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
-    $shelf_life_days = !empty($_POST['shelf_life_days']) ? (int)$_POST['shelf_life_days'] : null;
-    $farming_method = $_POST['farming_method'] ?? null;
-    $irrigation_type = sanitizeInput($_POST['irrigation_type']);
-    $storage_temperature = sanitizeInput($_POST['storage_temperature']);
-    $storage_humidity = sanitizeInput($_POST['storage_humidity']);
-    
-    // Validation
-    if (empty($name) || empty($description) || $category_id == 0 || $price_per_unit <= 0) {
-        $error = 'Please fill in all required fields';
+    if ($max_products_limit && $current_count >= $max_products_limit) {
+        $error = "Product limit reached. You cannot duplicate more products. Please upgrade your plan.";
     } else {
-        try {
-            // Check if slug already exists
-            $existing = $db->fetchOne("SELECT id FROM products WHERE slug = ? AND seller_id = ?", [$slug, $seller_id]);
-            if ($existing) {
-                $slug = $slug . '-' . time();
-            }
-            
-            // Insert duplicated product with draft status
-            $product_data = [
-                'seller_id' => $seller_id,
-                'category_id' => $category_id,
-                'name' => $name,
-                'slug' => $slug,
-                'description' => $description,
-                'short_description' => $short_description,
-                'product_type' => $product_type,
-                'variety' => $variety,
-                'price_per_unit' => $price_per_unit,
-                'unit' => $unit,
-                'unit_quantity' => $unit_quantity,
-                'min_order_quantity' => $min_order_quantity,
-                'max_order_quantity' => $max_order_quantity,
-                'stock_quantity' => $stock_quantity,
-                'low_stock_alert_level' => $low_stock_alert_level,
-                'weight_kg' => $weight_kg,
-                'dimensions' => $dimensions,
-                'status' => 'draft', // Set as draft to require approval
-                'is_featured' => $is_featured,
-                'created_at' => date('Y-m-d H:i:s')
-            ];
-            
-            $new_product_id = $db->insert('products', $product_data);
-            
-            if ($new_product_id) {
-                // Copy agricultural details
-                if ($agricultural_details) {
-                    $agri_data = [
-                        'product_id' => $new_product_id,
-                        'grade' => $grade ?? $agricultural_details['grade'],
-                        'is_organic' => $is_organic ?? $agricultural_details['is_organic'],
-                        'is_gmo' => $is_gmo ?? $agricultural_details['is_gmo'],
-                        'organic_certification_number' => $organic_certification_number ?? $agricultural_details['organic_certification_number'],
-                        'harvest_date' => $harvest_date ?? $agricultural_details['harvest_date'],
-                        'expiry_date' => $expiry_date ?? $agricultural_details['expiry_date'],
-                        'shelf_life_days' => $shelf_life_days ?? $agricultural_details['shelf_life_days'],
-                        'farming_method' => $farming_method ?? $agricultural_details['farming_method'],
-                        'irrigation_type' => $irrigation_type ?? $agricultural_details['irrigation_type'],
-                        'storage_temperature' => $storage_temperature ?? $agricultural_details['storage_temperature'],
-                        'storage_humidity' => $storage_humidity ?? $agricultural_details['storage_humidity']
-                    ];
-                    $db->insert('product_agricultural_details', $agri_data);
+        // Get form data
+        $name = sanitizeInput($_POST['name']);
+        $slug = createSlug($name);
+        $description = sanitizeInput($_POST['description']);
+        $short_description = sanitizeInput($_POST['short_description']);
+        $category_id = (int)$_POST['category_id'];
+        $product_type = $_POST['product_type'];
+        $variety = sanitizeInput($_POST['variety']);
+        $price_per_unit = (float)$_POST['price_per_unit'];
+        $unit = $_POST['unit'];
+        $unit_quantity = (float)$_POST['unit_quantity'];
+        $min_order_quantity = (float)$_POST['min_order_quantity'];
+        $max_order_quantity = !empty($_POST['max_order_quantity']) ? (float)$_POST['max_order_quantity'] : null;
+        $stock_quantity = (float)$_POST['stock_quantity'];
+        $low_stock_alert_level = (float)$_POST['low_stock_alert_level'];
+        $weight_kg = !empty($_POST['weight_kg']) ? (float)$_POST['weight_kg'] : null;
+        $dimensions = sanitizeInput($_POST['dimensions']);
+        $is_featured = isset($_POST['is_featured']) ? 1 : 0;
+        
+        // Agricultural details
+        $grade = $_POST['grade'] ?? null;
+        $is_organic = isset($_POST['is_organic']) ? 1 : 0;
+        $is_gmo = isset($_POST['is_gmo']) ? 1 : 0;
+        $organic_certification_number = sanitizeInput($_POST['organic_certification_number']);
+        $harvest_date = !empty($_POST['harvest_date']) ? $_POST['harvest_date'] : null;
+        $expiry_date = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
+        $shelf_life_days = !empty($_POST['shelf_life_days']) ? (int)$_POST['shelf_life_days'] : null;
+        $farming_method = $_POST['farming_method'] ?? null;
+        $irrigation_type = sanitizeInput($_POST['irrigation_type']);
+        $storage_temperature = sanitizeInput($_POST['storage_temperature']);
+        $storage_humidity = sanitizeInput($_POST['storage_humidity']);
+        
+        // Validation
+        if (empty($name) || empty($description) || $category_id == 0 || $price_per_unit <= 0) {
+            $error = 'Please fill in all required fields';
+        } else {
+            try {
+                // Check if slug already exists
+                $existing = $db->fetchOne("SELECT id FROM products WHERE slug = ? AND seller_id = ?", [$slug, $seller_id]);
+                if ($existing) {
+                    $slug = $slug . '-' . time();
                 }
                 
-                // Copy specifications
-                foreach ($specifications as $spec) {
-                    $spec_data = [
-                        'product_id' => $new_product_id,
-                        'attribute_id' => $spec['attribute_id'],
-                        'attribute_value' => $spec['attribute_value']
-                    ];
-                    $db->insert('product_specifications', $spec_data);
-                }
+                // Insert duplicated product with draft status
+                $product_data = [
+                    'seller_id' => $seller_id,
+                    'category_id' => $category_id,
+                    'name' => $name,
+                    'slug' => $slug,
+                    'description' => $description,
+                    'short_description' => $short_description,
+                    'product_type' => $product_type,
+                    'variety' => $variety,
+                    'price_per_unit' => $price_per_unit,
+                    'unit' => $unit,
+                    'unit_quantity' => $unit_quantity,
+                    'min_order_quantity' => $min_order_quantity,
+                    'max_order_quantity' => $max_order_quantity,
+                    'stock_quantity' => $stock_quantity,
+                    'low_stock_alert_level' => $low_stock_alert_level,
+                    'weight_kg' => $weight_kg,
+                    'dimensions' => $dimensions,
+                    'status' => 'draft', // Set as draft to require approval
+                    'is_featured' => $is_featured,
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
                 
-                // Copy bulk pricing
-                foreach ($bulk_pricing as $price) {
-                    $price_data = [
-                        'product_id' => $new_product_id,
-                        'min_quantity' => $price['min_quantity'],
-                        'max_quantity' => $price['max_quantity'],
-                        'price_per_unit' => $price['price_per_unit'],
-                        'discount_percentage' => $price['discount_percentage']
-                    ];
-                    $db->insert('product_bulk_pricing', $price_data);
-                }
+                $new_product_id = $db->insert('products', $product_data);
                 
-                // Copy product images (physical files need to be copied)
-                $image_copied = false;
-                foreach ($product_images as $image) {
-                    $source_path = '../../uploads/products/' . $image['image_path'];
-                    $extension = pathinfo($image['image_path'], PATHINFO_EXTENSION);
-                    $new_filename = 'product_' . $new_product_id . '_' . time() . '_' . uniqid() . '.' . $extension;
-                    $dest_path = '../../uploads/products/' . $new_filename;
+                if ($new_product_id) {
+                    // Copy agricultural details
+                    if ($agricultural_details) {
+                        $agri_data = [
+                            'product_id' => $new_product_id,
+                            'grade' => $grade ?? $agricultural_details['grade'],
+                            'is_organic' => $is_organic ?? $agricultural_details['is_organic'],
+                            'is_gmo' => $is_gmo ?? $agricultural_details['is_gmo'],
+                            'organic_certification_number' => $organic_certification_number ?? $agricultural_details['organic_certification_number'],
+                            'harvest_date' => $harvest_date ?? $agricultural_details['harvest_date'],
+                            'expiry_date' => $expiry_date ?? $agricultural_details['expiry_date'],
+                            'shelf_life_days' => $shelf_life_days ?? $agricultural_details['shelf_life_days'],
+                            'farming_method' => $farming_method ?? $agricultural_details['farming_method'],
+                            'irrigation_type' => $irrigation_type ?? $agricultural_details['irrigation_type'],
+                            'storage_temperature' => $storage_temperature ?? $agricultural_details['storage_temperature'],
+                            'storage_humidity' => $storage_humidity ?? $agricultural_details['storage_humidity']
+                        ];
+                        $db->insert('product_agricultural_details', $agri_data);
+                    }
                     
-                    if (file_exists($source_path)) {
-                        if (copy($source_path, $dest_path)) {
-                            $image_data = [
-                                'product_id' => $new_product_id,
-                                'image_path' => $new_filename,
-                                'alt_text' => $image['alt_text'],
-                                'is_primary' => $image['is_primary'],
-                                'sort_order' => $image['sort_order']
-                            ];
-                            $db->insert('product_images', $image_data);
-                            $image_copied = true;
+                    // Copy specifications
+                    foreach ($specifications as $spec) {
+                        $spec_data = [
+                            'product_id' => $new_product_id,
+                            'attribute_id' => $spec['attribute_id'],
+                            'attribute_value' => $spec['attribute_value']
+                        ];
+                        $db->insert('product_specifications', $spec_data);
+                    }
+                    
+                    // Copy bulk pricing
+                    foreach ($bulk_pricing as $price) {
+                        $price_data = [
+                            'product_id' => $new_product_id,
+                            'min_quantity' => $price['min_quantity'],
+                            'max_quantity' => $price['max_quantity'],
+                            'price_per_unit' => $price['price_per_unit'],
+                            'discount_percentage' => $price['discount_percentage']
+                        ];
+                        $db->insert('product_bulk_pricing', $price_data);
+                    }
+                    
+                    // Copy product images (physical files need to be copied)
+                    $upload_path = '../../assets/uploads/products/';
+                    if (!is_dir($upload_path)) {
+                        mkdir($upload_path, 0755, true);
+                    }
+                    
+                    foreach ($product_images as $image) {
+                        $source_path = '../../assets/uploads/products/' . $image['image_path'];
+                        $extension = pathinfo($image['image_path'], PATHINFO_EXTENSION);
+                        $new_filename = 'product_' . $new_product_id . '_' . time() . '_' . uniqid() . '.' . $extension;
+                        $dest_path = $upload_path . $new_filename;
+                        
+                        if (file_exists($source_path)) {
+                            if (copy($source_path, $dest_path)) {
+                                $image_data = [
+                                    'product_id' => $new_product_id,
+                                    'image_path' => $new_filename,
+                                    'alt_text' => $image['alt_text'],
+                                    'is_primary' => $image['is_primary'],
+                                    'sort_order' => $image['sort_order']
+                                ];
+                                $db->insert('product_images', $image_data);
+                            }
                         }
                     }
+                    
+                    // Create approval record
+                    $product_record = $db->fetchOne("SELECT * FROM products WHERE id = ?", [$new_product_id]);
+                    $agricultural_record = $db->fetchOne("SELECT * FROM product_agricultural_details WHERE product_id = ?", [$new_product_id]);
+                    
+                    $new_data = [
+                        'product' => $product_record,
+                        'agricultural' => $agricultural_record
+                    ];
+                    
+                    $db->insert('product_approvals', [
+                        'product_id' => $new_product_id,
+                        'seller_id' => $seller_id,
+                        'new_data' => json_encode($new_data),
+                        'change_type' => 'create',
+                        'status' => 'pending_review'
+                    ]);
+                    
+                    $success = 'Product duplicated successfully! It has been saved as a draft and will be reviewed by admin.';
+                    
+                    // Redirect to edit page after short delay
+                    header('Refresh: 2; URL=edit-product.php?id=' . $new_product_id);
+                } else {
+                    $error = 'Failed to duplicate product. Please try again.';
                 }
-                
-                $success = 'Product duplicated successfully! It has been saved as a draft and will be reviewed by admin.';
-                
-                // Redirect to edit page after short delay
-                header('Refresh: 2; URL=edit-product.php?id=' . $new_product_id);
-            } else {
-                $error = 'Failed to duplicate product. Please try again.';
+            } catch (Exception $e) {
+                $error = 'Error: ' . $e->getMessage();
             }
-        } catch (Exception $e) {
-            $error = 'Error: ' . $e->getMessage();
         }
     }
 }
@@ -213,6 +341,8 @@ $seller_stats = [
     'low_stock_count' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status = 'approved' AND stock_quantity <= low_stock_alert_level AND stock_quantity > 0", [$seller_id])['count'],
     'pending_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM order_items WHERE seller_id = ? AND status = 'pending'", [$seller_id])['count'],
     'today_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.seller_id = ? AND o.created_at >= CURDATE() AND o.created_at < CURDATE() + INTERVAL 1 DAY", [$seller_id])['count'],
+    'total_products' => $current_products_count,
+    'max_products' => $max_products_limit
 ];
 
 // Set seller info for sidebar
@@ -258,6 +388,31 @@ include '../../includes/header.php';
                     <a href="manage-products.php" class="btn btn-sm btn-outline-secondary">
                         <i class="bi bi-arrow-left me-1"></i> Back to Products
                     </a>
+                </div>
+            </div>
+
+            <!-- Subscription Info Banner -->
+            <div class="alert alert-info mb-4">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-<?php echo $is_trial ? 'gift-fill' : 'patch-check-fill'; ?> fs-4 me-3"></i>
+                    <div class="flex-grow-1">
+                        <strong><?php echo $is_trial ? 'Free Trial Active' : ($subscription['plan_name'] ?? 'Subscription Active'); ?></strong><br>
+                        <small>
+                            You have added <strong><?php echo $current_products_count; ?></strong> of <?php echo $max_products_limit ? number_format($max_products_limit) : 'unlimited'; ?> products.
+                            <?php if ($max_products_limit): ?>
+                                <div class="progress mt-1" style="height: 4px; width: 200px;">
+                                    <div class="progress-bar bg-success" 
+                                         style="width: <?php echo min(100, ($current_products_count / $max_products_limit) * 100); ?>%">
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        </small>
+                    </div>
+                    <?php if ($is_trial || ($subscription && $days_remaining <= 7)): ?>
+                        <a href="../subscription/upgrade.php" class="btn btn-sm btn-outline-primary">
+                            Upgrade Plan
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -578,10 +733,18 @@ include '../../includes/header.php';
                             <a href="manage-products.php" class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle me-1"></i> Cancel
                             </a>
-                            <button type="submit" class="btn btn-success" id="submitBtn">
+                            <button type="submit" class="btn btn-success" id="submitBtn" <?php echo $product_limit_reached ? 'disabled' : ''; ?>>
                                 <i class="bi bi-files me-1"></i> Duplicate Product
                             </button>
                         </div>
+                        
+                        <?php if ($product_limit_reached): ?>
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                You have reached your product limit. 
+                                <a href="../subscription/upgrade.php" class="alert-link">Upgrade your plan</a> to add more products.
+                            </div>
+                        <?php endif; ?>
                     </form>
                 </div>
             </div>

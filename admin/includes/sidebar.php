@@ -7,6 +7,7 @@ $active_products = (strpos($current_uri, '/admin/products/') !== false) ? 'activ
 $active_orders = (strpos($current_uri, '/admin/orders/') !== false) ? 'active' : '';
 $active_financial = (strpos($current_uri, '/admin/financial/') !== false) ? 'active' : '';
 $active_reports = (strpos($current_uri, '/admin/reports/') !== false) ? 'active' : '';
+$active_subscriptions = (strpos($current_uri, '/admin/subscriptions/') !== false) ? 'active' : '';
 $active_settings = (strpos($current_uri, '/admin/settings/') !== false) ? 'active' : '';
 ?>
 
@@ -187,6 +188,47 @@ $active_settings = (strpos($current_uri, '/admin/settings/') !== false) ? 'activ
                 </div>
             </li>
             
+            <!-- Subscriptions Management -->
+            <li class="nav-item">
+                <a class="nav-link <?php echo $active_subscriptions; ?>" 
+                data-bs-toggle="collapse" 
+                href="#subscriptionsCollapse"
+                aria-expanded="<?php echo $active_subscriptions ? 'true' : 'false'; ?>">
+                    <i class="bi bi-repeat me-2"></i>
+                    <span>Subscriptions</span>
+                    <i class="bi bi-chevron-down ms-auto"></i>
+                </a>
+                <div class="collapse <?php echo $active_subscriptions ? 'show' : ''; ?>" id="subscriptionsCollapse">
+                    <ul class="nav flex-column sub-menu ms-3">
+                        
+                        <li class="nav-item">
+                            <a class="nav-link" 
+                            href="<?php echo BASE_URL; ?>/admin/subscriptions/manage-plans.php">
+                                <i class="bi bi-card-list me-1"></i>
+                                Manage Plans
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" 
+                            href="<?php echo BASE_URL; ?>/admin/subscriptions/subscriptions.php">
+                                <i class="bi bi-people-fill me-1"></i>
+                                User Subscriptions
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" 
+                            href="<?php echo BASE_URL; ?>/admin/subscriptions/coupons.php">
+                                <i class="bi bi-ticket-perforated me-1"></i>
+                                Coupons
+                            </a>
+                        </li>
+
+                    </ul>
+                </div>
+            </li>
+
             <!-- Reports -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_reports; ?>" 

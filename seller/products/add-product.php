@@ -10,6 +10,101 @@ $seller_id = $_SESSION['user_id'];
 $error = '';
 $success = '';
 
+// Get active subscription information
+$subscription = $db->fetchOne("
+    SELECT 
+        ss.*,
+        p.name as plan_name,
+        p.price as plan_price,
+        p.duration_days as plan_duration,
+        p.features as plan_features
+    FROM seller_subscriptions ss
+    LEFT JOIN subscription_plans p ON ss.plan_id = p.id
+    WHERE ss.seller_id = ? AND ss.is_active = 1 AND ss.end_date > NOW()
+    ORDER BY ss.id DESC LIMIT 1
+", [$seller_id]);
+
+// Get free trial settings
+$trial_settings = $db->fetchOne("SELECT * FROM free_trial_settings WHERE id = 1");
+
+// Check subscription status
+$has_active_subscription = false;
+$subscription_status = 'no_subscription';
+$is_trial = false;
+
+if ($subscription) {
+    $has_active_subscription = true;
+    $subscription_status = $subscription['subscription_type'] == 'free_trial' ? 'trial' : 'active';
+    $is_trial = $subscription['subscription_type'] == 'free_trial';
+} elseif ($trial_settings && $trial_settings['is_enabled']) {
+    // Check if seller has ever had a subscription
+    $has_trial = $db->fetchOne("
+        SELECT COUNT(*) as count FROM seller_subscriptions 
+        WHERE seller_id = ? AND subscription_type = 'free_trial'
+    ", [$seller_id])['count'];
+    
+    if ($has_trial == 0) {
+        // Auto-create free trial for new seller
+        $trial_start = date('Y-m-d H:i:s');
+        $trial_end = date('Y-m-d H:i:s', strtotime("+{$trial_settings['duration_days']} days"));
+        
+        $db->insert('seller_subscriptions', [
+            'seller_id' => $seller_id,
+            'subscription_type' => 'free_trial',
+            'start_date' => $trial_start,
+            'end_date' => $trial_end,
+            'is_active' => 1,
+            'payment_status' => 'paid',
+            'features_snapshot' => $trial_settings['features']
+        ]);
+        
+        $has_active_subscription = true;
+        $subscription_status = 'trial';
+        $is_trial = true;
+    }
+}
+
+// Get subscription limits
+$max_products_limit = null;
+$max_orders_limit = null;
+
+if ($is_trial && $trial_settings) {
+    $max_products_limit = $trial_settings['max_products'];
+    $max_orders_limit = $trial_settings['max_orders'];
+} elseif ($subscription && $subscription['plan_features']) {
+    $plan_features = json_decode($subscription['plan_features'], true);
+    // Extract limits from features if needed (you can add specific limit fields to plans table)
+    foreach ($plan_features as $feature) {
+        if (strpos($feature, 'Up to') !== false && strpos($feature, 'products') !== false) {
+            preg_match('/Up to (\d+)/', $feature, $matches);
+            if ($matches) {
+                $max_products_limit = (int)$matches[1];
+            }
+        }
+    }
+}
+
+// Check if seller has reached product limit
+$current_products_count = $db->fetchOne("
+    SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status != 'rejected'
+", [$seller_id])['count'];
+
+$product_limit_reached = $max_products_limit && $current_products_count >= $max_products_limit;
+
+// If no active subscription and no trial, redirect to upgrade
+if (!$has_active_subscription) {
+    setFlashMessage('You need an active subscription to add products. Please subscribe to a plan.', 'warning');
+    header('Location: ../subscription/upgrade.php');
+    exit;
+}
+
+// If product limit reached, redirect with message
+if ($product_limit_reached) {
+    setFlashMessage("You have reached the maximum of {$max_products_limit} products on your current plan. Upgrade to add more products.", 'warning');
+    header('Location: ../subscription/upgrade.php');
+    exit;
+}
+
 // Get categories for dropdown
 $categories = $db->fetchAll("SELECT id, name, description FROM categories WHERE is_active = TRUE ORDER BY name");
 
@@ -18,6 +113,16 @@ $seller_profile = $db->fetchOne("
     SELECT business_name, business_logo as avatar, avg_rating
     FROM seller_profiles WHERE user_id = ?
 ", [$seller_id]);
+
+// Get seller stats for sidebar
+$seller_stats = [
+    'pending_products' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status = 'pending'", [$seller_id])['count'],
+    'low_stock_count' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status = 'approved' AND stock_quantity <= low_stock_alert_level AND stock_quantity > 0", [$seller_id])['count'],
+    'pending_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM order_items WHERE seller_id = ? AND status = 'pending'", [$seller_id])['count'],
+    'today_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.seller_id = ? AND o.created_at >= CURDATE() AND o.created_at < CURDATE() + INTERVAL 1 DAY", [$seller_id])['count'],
+    'total_products' => $current_products_count,
+    'max_products' => $max_products_limit
+];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $product_data = [
@@ -187,13 +292,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             setFlashMessage($success_message, 'success');
             
-            if ($status === 'draft') {
-                header('Location: manage-products.php');
-                exit;
-            } else {
-                header('Location: manage-products.php');
-                exit;
-            }
+            header('Location: manage-products.php');
+            exit;
             
         } catch (Exception $e) {
             $db->conn->rollback();
@@ -203,14 +303,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = implode('<br>', $errors);
     }
 }
-
-// Get seller stats for sidebar
-$seller_stats = [
-    'pending_products' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status = 'pending'", [$seller_id])['count'],
-    'low_stock_count' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status = 'approved' AND stock_quantity <= low_stock_alert_level AND stock_quantity > 0", [$seller_id])['count'],
-    'pending_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM order_items WHERE seller_id = ? AND status = 'pending'", [$seller_id])['count'],
-    'today_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.seller_id = ? AND o.created_at >= CURDATE() AND o.created_at < CURDATE() + INTERVAL 1 DAY", [$seller_id])['count'],
-];
 
 // Set seller info for sidebar
 $_SESSION['business_name'] = $seller_profile['business_name'] ?? 'Your Store';
@@ -252,6 +344,31 @@ require_once '../../includes/header.php';
                     <a href="manage-products.php" class="btn btn-sm btn-outline-secondary">
                         <i class="bi bi-arrow-left me-1"></i> Back to Products
                     </a>
+                </div>
+            </div>
+
+            <!-- Subscription Info Banner -->
+            <div class="alert alert-info mb-4">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-<?php echo $is_trial ? 'gift-fill' : 'patch-check-fill'; ?> fs-4 me-3"></i>
+                    <div class="flex-grow-1">
+                        <strong><?php echo $is_trial ? 'Free Trial Active' : ($subscription['plan_name'] ?? 'Subscription Active'); ?></strong><br>
+                        <small>
+                            You have added <strong><?php echo $current_products_count; ?></strong> of <?php echo $max_products_limit ? number_format($max_products_limit) : 'unlimited'; ?> products.
+                            <?php if ($max_products_limit): ?>
+                                <div class="progress mt-1" style="height: 4px; width: 200px;">
+                                    <div class="progress-bar bg-success" 
+                                         style="width: <?php echo min(100, ($current_products_count / $max_products_limit) * 100); ?>%">
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        </small>
+                    </div>
+                    <?php if ($is_trial || ($subscription && $days_remaining <= 7)): ?>
+                        <a href="../subscription/upgrade.php" class="btn btn-sm btn-outline-primary">
+                            Upgrade Plan
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
 
