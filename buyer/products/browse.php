@@ -468,46 +468,52 @@ async function toggleWishlist(button, productId) {
 
 // Toast notification function
 function showToast(message, type = 'info') {
-    // Check if agriApp exists
-    if (typeof agriApp !== 'undefined' && agriApp.showToast) {
-        agriApp.showToast(message, type);
-    } else {
-        // Fallback toast implementation
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${type === 'success' ? '#198754' : type === 'error' ? '#dc3545' : '#0dcaf0'};
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 10000;
-            transform: translateX(400px);
-            transition: transform 0.3s ease;
-        `;
-        
-        toast.innerHTML = `
-            <div class="toast-content d-flex align-items-center">
-                <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
-                <span>${message}</span>
-                <button class="btn-close btn-close-white ms-3" onclick="this.parentElement.parentElement.remove()"></button>
-            </div>
-        `;
-        
-        document.body.appendChild(toast);
-        
-        // Animate in
-        setTimeout(() => toast.style.transform = 'translateX(0)', 100);
-        
-        // Auto hide after 5 seconds
-        setTimeout(() => {
-            toast.style.transform = 'translateX(400px)';
-            setTimeout(() => toast.remove(), 300);
-        }, 5000);
-    }
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? '#198754' 
+                  : type === 'error' ? '#dc3545' 
+                  : type === 'warning' ? '#ffc107' 
+                  : '#0dcaf0';
+
+    const textColor = type === 'warning' ? '#000' : '#fff';
+    
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: ${bgColor};
+        color: ${textColor};
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        transform: translateX(400px);
+        transition: transform 0.3s ease;
+        font-size: 14px;
+    `;
+    
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="bi bi-${
+                type === 'success' ? 'check-circle' :
+                type === 'error' ? 'exclamation-circle' :
+                type === 'warning' ? 'exclamation-triangle' :
+                'info-circle'
+            } me-2"></i>
+            <span>${message}</span>
+            <button class="btn-close btn-close-${textColor === '#fff' ? 'white' : ''} ms-3"
+                style="font-size: 10px;"
+                onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.style.transform = 'translateX(0)', 100);
+
+    setTimeout(() => {
+        toast.style.transform = 'translateX(400px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
 }
 
 // Update cart count
