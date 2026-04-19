@@ -350,5 +350,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
     </script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('logout') === '1') {
+    sessionStorage.removeItem('cart_synced');
+}
+</script>
 </body>
 </html>

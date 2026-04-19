@@ -3,7 +3,6 @@ require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
 require_once '../../classes/Database.php';
 
-
 // Generate CSRF token if not exists
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -155,10 +154,9 @@ include '../../includes/header.php';
                                                                 <?php endif; ?>
                                                             </div>
                                                         </div>
-                                                    </div>
                                                     <td>
                                                         <h6 class="mb-0"><?php echo formatCurrency($item['price_per_unit']); ?></h6>
-                                                    </div>
+                                                   </td>
                                                     <td>
                                                         <div class="input-group" style="width: 120px;">
                                                             <input type="number" class="form-control quantity-input" 
@@ -169,18 +167,18 @@ include '../../includes/header.php';
                                                                    data-stock="<?php echo $item['stock_quantity']; ?>"
                                                                    data-price="<?php echo $item['price_per_unit']; ?>">
                                                         </div>
-                                                    </div>
+                                                    </td>
                                                     <td>
                                                         <h6 class="mb-0 text-success item-total" data-product-id="<?php echo $item['product_id']; ?>">
                                                             <?php echo formatCurrency($item_total); ?>
                                                         </h6>
-                                                    </div>
+                                                    </td>
                                                     <td>
                                                         <button type="button" class="btn btn-sm btn-outline-danger remove-item" 
                                                                 data-product-id="<?php echo $item['product_id']; ?>">
                                                             <i class="bi bi-trash"></i>
                                                         </button>
-                                                    </div>
+                                                    </td>
                                                 </tr>
                                             <?php endforeach; ?>
                                         </tbody>
@@ -355,10 +353,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-sync for logged-in users who might have guest cart data (ONLY JavaScript sync)
     <?php if (isLoggedIn()): ?>
         const localCart = localStorage.getItem('greenagric_cart');
-        if (localCart && localCart !== '[]') {
+        const hasSynced = sessionStorage.getItem('cart_synced');
+        if (localCart && localCart !== '[]' && !hasSynced) {
             const cartItems = JSON.parse(localCart);
             if (cartItems.length > 0) {
                 syncCartWithDatabase();
+                sessionStorage.setItem('cart_synced', 'true');
             }
         }
     <?php endif; ?>
@@ -617,6 +617,14 @@ function removeFromCart(productId) {
         input.name = 'remove';
         input.value = productId;
         form.appendChild(input);
+        // Remove from localStorage
+        if (typeof cartManager !== 'undefined') {
+            cartManager.removeFromCart(productId);
+        } else {
+            let cart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+            cart = cart.filter(item => item.productId != productId);
+            localStorage.setItem('greenagric_cart', JSON.stringify(cart));
+        }
         form.submit();
     <?php else: ?>
         // For guests, use cart manager
@@ -633,8 +641,19 @@ function removeFromCart(productId) {
 }
 
 function clearCart() {
-    <?php if (isLoggedIn()): ?>
-        if (confirm('Are you sure you want to clear your cart?')) {
+    if (confirm('Are you sure you want to clear your cart?')) {
+
+        // ALWAYS clear localStorage (both guest & logged-in)
+        if (typeof cartManager !== 'undefined') {
+            cartManager.clearCart();
+        } else {
+            localStorage.removeItem('greenagric_cart');
+        }
+
+        // Update UI immediately
+        updateCartCount();
+
+        <?php if (isLoggedIn()): ?>
             const form = document.getElementById('cart-form');
             const input = document.createElement('input');
             input.type = 'hidden';
@@ -642,18 +661,10 @@ function clearCart() {
             input.value = '1';
             form.appendChild(input);
             form.submit();
-        }
-    <?php else: ?>
-        if (confirm('Are you sure you want to clear your cart?')) {
-            if (typeof cartManager !== 'undefined') {
-                cartManager.clearCart();
-            } else {
-                localStorage.removeItem('greenagric_cart');
-            }
+        <?php else: ?>
             displayGuestCart();
-            updateCartCount();
-        }
-    <?php endif; ?>
+        <?php endif; ?>
+    }
 }
 
 // ONLY JavaScript-based sync via API (NO PHP sync)
