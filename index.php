@@ -650,6 +650,44 @@ include 'includes/header.php';
 </style>
 
 <script>
+function showToast(message, type = 'info') {
+    if (typeof agriApp !== 'undefined' && agriApp.showToast) {
+        agriApp.showToast(message, type);
+        return;
+    }
+
+    // fallback
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#198754' : type === 'error' ? '#dc3545' : '#0dcaf0'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        transform: translateX(400px);
+        transition: transform 0.3s ease;
+    `;
+
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <span>${message}</span>
+        </div>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.style.transform = 'translateX(0)', 100);
+
+    setTimeout(() => {
+        toast.style.transform = 'translateX(400px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
     // =========================
@@ -706,7 +744,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             cartManager.addToCart(productId, productName, productPrice, productUnit, 1);
-            agriApp.showToast(`${productName} added to cart!`, 'success');
+            showToast(`${productName} added to cart!`, 'success');
         });
     });
 

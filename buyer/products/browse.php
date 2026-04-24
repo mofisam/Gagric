@@ -42,7 +42,30 @@ $page_title = "Browse Products";
 $page_css = 'products.css';
 include '../../includes/header.php'; 
 ?>
+<style>
+    /* Add to Cart button animation */
+.add-to-cart-btn.added-animation {
+    background: #198754 !important;
+    color: white !important;
+    border-color: #198754 !important;
+    animation: addToCartPulse 0.3s ease;
+}
 
+@keyframes addToCartPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+</style>
+<!-- Add to your navbar -->
+<li class="nav-item">
+    <a class="nav-link position-relative" href="#" onclick="window.sideCart.toggle(); return false;" id="cartToggleBtn">
+        <i class="bi bi-cart3"></i>
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-count">
+            0
+        </span>
+    </a>
+</li>
 <div class="container py-4">
     <div class="row">
         <!-- Filters Sidebar -->
@@ -368,8 +391,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
+    // NEW CODE - Use Side Cart instead of Toast
     document.querySelectorAll('.add-to-cart-btn').forEach(button => {
-        button.addEventListener('click', function(e) {
+        button.addEventListener('click', async function(e) {
             e.preventDefault();
             e.stopPropagation();
             
@@ -377,15 +401,38 @@ document.addEventListener('DOMContentLoaded', function() {
             const productName = this.dataset.productName;
             const productPrice = this.dataset.productPrice;
             const productUnit = this.dataset.productUnit;
+            const stock = parseInt(this.dataset.stock);
+            const imagePath = this.closest('.product-card')?.querySelector('img')?.src || null;
             
-            // Add to cart
-            cartManager.addToCart(productId, productName, productPrice, productUnit, 1);
+            // Disable button temporarily to prevent double clicks
+            this.disabled = true;
+            const originalHTML = this.innerHTML;
+            this.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Adding...';
             
-            // Show success message
-            showToast(`${productName} added to cart!`, 'success');
-            
-            // Update cart count
-            updateCartCount();
+            try {
+                // Use side cart to add item
+                await window.sideCart.addToCart(
+                    productId, 
+                    productName, 
+                    productPrice, 
+                    productUnit, 
+                    1, 
+                    imagePath ? imagePath.split('/').pop() : null
+                );
+                
+                // Add a brief animation to the button
+                this.classList.add('added-animation');
+                setTimeout(() => {
+                    this.classList.remove('added-animation');
+                    this.innerHTML = originalHTML;
+                    this.disabled = false;
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Failed to add to cart:', error);
+                this.disabled = false;
+                this.innerHTML = originalHTML;
+            }
         });
     });
     
@@ -532,6 +579,13 @@ function updateCartCount() {
 // Initialize cart count on page load
 updateCartCount();
 </script>
+
+<!-- Side Cart Component -->
+<?php include '../../includes/side-cart.php'; ?>
+
+<?php 
+$page_js = 'products.js';
+?>
 
 <?php 
 include '../../includes/footer.php'; 
