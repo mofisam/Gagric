@@ -321,7 +321,7 @@
         
         <!-- Actions -->
         <div class="d-grid gap-2">
-            <a href="view-cart.php" class="btn btn-outline-success">
+            <a href="<?php echo BASE_URL; ?>/buyer/cart/view-cart.php" class="btn btn-outline-success">
                 <i class="bi bi-cart me-2"></i>View Full Cart
             </a>
             <?php if (isLoggedIn()): ?>
