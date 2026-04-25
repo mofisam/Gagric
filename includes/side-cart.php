@@ -334,12 +334,6 @@
                 </a>
             <?php endif; ?>
         </div>
-        
-        <div class="text-center mt-2">
-            <small class="text-muted">
-                <i class="bi bi-shield-check me-1"></i> Secure checkout
-            </small>
-        </div>
     </div>
 </div>
 

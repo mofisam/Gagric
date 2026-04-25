@@ -60,10 +60,17 @@ $user_id = getCurrentUserId();
 
 // Validate quantity
 if ($quantity <= 0) {
-    http_response_code(400);
+    // Delete item from cart
+    $db = new Database();
+
+    $db->query(
+        "DELETE FROM cart WHERE user_id = ? AND product_id = ?",
+        [$user_id, $product_id]
+    );
+
     echo json_encode([
-        'success' => false,
-        'error' => 'Quantity must be greater than 0'
+        'success' => true,
+        'message' => 'Item removed from cart'
     ]);
     exit;
 }

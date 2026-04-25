@@ -230,7 +230,7 @@ include '../../includes/header.php';
                                     </div>
                                     
                                     <!-- Add to Cart Button -->
-                                    <button class="btn btn-sm btn-success w-100 add-to-cart-btn" 
+                                    <button class="btn btn-sm btn-success w-100 p-2 pt-3 pb-3 add-to-cart-btn" 
                                             data-product-id="<?php echo $prod['id']; ?>"
                                             data-product-name="<?php echo htmlspecialchars($prod['name']); ?>"
                                             data-product-price="<?php echo $prod['price_per_unit']; ?>"
