@@ -1,10 +1,4 @@
 <?php
-
-
-// Show errors (for debugging)
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
 require_once 'classes/Database.php';
 require_once 'config/constants.php';
 require_once 'includes/functions.php';
@@ -675,7 +669,54 @@ include 'includes/header.php';
 // =========================
 document.addEventListener('DOMContentLoaded', function () {
 
-    // Add to cart buttons (USE SIDE CART ONLY)
+    // =========================
+    // GLOBAL CART MANAGER (Fallback)
+    // =========================
+    window.cartManager = window.cartManager || {
+        addToCart(productId, productName, productPrice, productUnit, quantity = 1, imagePath = null) {
+            let cart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+
+            const existingItem = cart.find(item => item.productId == productId);
+
+            if (existingItem) {
+                existingItem.quantity += quantity;
+            } else {
+                cart.push({
+                    productId: productId,
+                    productName: productName,
+                    productPrice: parseFloat(productPrice),
+                    productUnit: productUnit,
+                    quantity: quantity,
+                    imagePath: imagePath || 'placeholder-product.jpg'
+                });
+            }
+
+            localStorage.setItem('greenagric_cart', JSON.stringify(cart));
+            this.updateCartCount();
+            
+            // Dispatch cart updated event
+            document.dispatchEvent(new CustomEvent('cartUpdated'));
+        },
+
+        updateCartCount() {
+            const cart = JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            
+            // Update all cart count badges
+            const cartCountElements = document.querySelectorAll('#cart-count, #sideCartCount, .cart-count-badge');
+            cartCountElements.forEach(el => {
+                el.textContent = totalItems;
+            });
+        },
+
+        getCart() {
+            return JSON.parse(localStorage.getItem('greenagric_cart') || '[]');
+        }
+    };
+
+    // =========================
+    // ADD TO CART BUTTONS - Using Side Cart Modal
+    // =========================
     document.querySelectorAll('.add-to-cart-btn').forEach(button => {
         button.addEventListener('click', async function (e) {
             e.preventDefault();
@@ -687,48 +728,68 @@ document.addEventListener('DOMContentLoaded', function () {
             const productUnit = this.dataset.productUnit;
             const stock = parseInt(this.dataset.stock || 0);
 
-            // Prevent adding out-of-stock items
+            // Check stock
             if (stock <= 0) {
                 showErrorToast('This product is out of stock');
                 return;
             }
 
-            // Get product image
+            // Get product image if available
             const productCard = this.closest('.product-card, .card');
             const productImage = productCard ? productCard.querySelector('img') : null;
             const imageSrc = productImage ? productImage.src : null;
             const imagePath = imageSrc ? imageSrc.split('/').pop() : null;
 
-            // UI loading state
+            // Disable button temporarily to prevent double clicks
             const originalHTML = this.innerHTML;
             this.disabled = true;
             this.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Adding...';
 
             try {
-                // ALWAYS use SideCart
-                await window.sideCart.addToCart(
-                    productId,
-                    productName,
-                    productPrice,
-                    productUnit,
-                    1,
-                    imagePath
-                );
-
-                // Success animation
+                // Check if SideCart is available
+                if (window.sideCart && typeof window.sideCart.addToCart === 'function') {
+                    // Use the SideCart class for logged-in users (API) or guests (localStorage)
+                    await window.sideCart.addToCart(
+                        productId, 
+                        productName, 
+                        productPrice, 
+                        productUnit, 
+                        1, 
+                        imagePath
+                    );
+                } else {
+                    // Fallback to cartManager if SideCart not loaded
+                    cartManager.addToCart(productId, productName, productPrice, productUnit, 1, imagePath);
+                    cartManager.updateCartCount();
+                    
+                    // Manually open side cart if it exists in DOM
+                    const sideCart = document.getElementById('sideCart');
+                    const backdrop = document.getElementById('sideCartBackdrop');
+                    if (sideCart && backdrop) {
+                        sideCart.classList.add('show');
+                        backdrop.classList.add('show');
+                        document.body.style.overflow = 'hidden';
+                        
+                        // Trigger render
+                        document.dispatchEvent(new CustomEvent('cartUpdated'));
+                    }
+                }
+                
+                // Add success animation to button
                 this.classList.add('cart-added');
-
                 setTimeout(() => {
                     this.classList.remove('cart-added');
-                    this.innerHTML = '<i class="bi bi-check-lg me-1"></i> Added!';
+                    this.innerHTML = originalHTML;
+                    this.disabled = false;
                     
+                    // Update button text briefly to show success
+                    const successHTML = '<i class="bi bi-check-lg me-1"></i> Added!';
+                    this.innerHTML = successHTML;
                     setTimeout(() => {
                         this.innerHTML = originalHTML;
-                        this.disabled = false;
-                    }, 1200);
-
-                }, 400);
-
+                    }, 1500);
+                }, 500);
+                
             } catch (error) {
                 console.error('Failed to add to cart:', error);
                 showErrorToast('Failed to add item. Please try again.');
@@ -738,9 +799,19 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Optional: listen for cart updates
+    // =========================
+    // WISHLIST STATUS (LOGGED IN)
+    // =========================
+    loadWishlistStatus();
+
+    // =========================
+    // INIT CART COUNT
+    // =========================
+    cartManager.updateCartCount();
+    
+    // Listen for cart updates to refresh count
     document.addEventListener('cartUpdated', () => {
-        console.log('Cart updated');
+        cartManager.updateCartCount();
     });
 });
 
