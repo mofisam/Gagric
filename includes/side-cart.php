@@ -660,8 +660,8 @@ class SideCart {
     
     createCartItemHTML(item) {
         const imageUrl = item.imagePath 
-            ? `../../assets/uploads/products/${item.imagePath}` 
-            : '../../assets/images/placeholder-product.jpg';
+            ? `<?php echo BASE_URL; ?>/assets/uploads/products/${item.imagePath}` 
+            : '<?php echo BASE_URL; ?>/assets/images/placeholder-product.jpg';
         
         const subtotal = item.productPrice * item.quantity;
         
@@ -669,7 +669,7 @@ class SideCart {
             <div class="side-cart-item">
                 <img src="${imageUrl}" alt="${this.escapeHtml(item.productName)}" 
                      class="side-cart-item-image" 
-                     onerror="this.src='../../assets/images/placeholder-product.jpg'">
+                     onerror="this.src='<?php echo BASE_URL; ?>/assets/images/placeholder-product.jpg'">
                 <div class="side-cart-item-details">
                     <div class="side-cart-item-name">${this.escapeHtml(item.productName)}</div>
                     <div class="side-cart-item-price">₦${item.productPrice.toLocaleString('en-NG')}</div>
