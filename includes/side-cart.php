@@ -4,6 +4,8 @@
  * Can be included on any page that has products
  * Requires: Bootstrap 5, Bootstrap Icons
  */
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 ?>
 <style>
 /* Side Cart Styles */
@@ -759,7 +761,6 @@ class SideCart {
 }
 
 // Initialize side cart when DOM is ready
-// Initialize side cart when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     // Get CSRF token - try multiple sources
     let csrfToken = '';
@@ -785,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     window.sideCart = new SideCart({
         cartKey: 'greenagric_cart',
-        apiBase: '../../api/cart',
+        apiBase: '<?php echo BASE_URL; ?>/api/cart',
         csrfToken: csrfToken,
         isLoggedIn: <?php echo isLoggedIn() ? 'true' : 'false'; ?>,
         shipping: 500,
