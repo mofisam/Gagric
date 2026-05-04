@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Send email using Mailer with debug mode ON to see errors
                 try {
                     // Create mailer instance with debug mode ON
-                    $mailer = new Mailer(true); // Set to true for debugging
+                    $mailer = new Mailer(false); // Set to true for debugging
                     
                     // Prepare user data
                     $full_name = $user['first_name'] . ' ' . $user['last_name'];

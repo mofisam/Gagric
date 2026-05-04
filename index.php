@@ -744,7 +744,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // =========================
-// ERROR TOAST (Only for errors, not cart additions)
+// ERROR TOAST (Only for errors)
 // =========================
 function showErrorToast(message) {
     const toast = document.createElement('div');

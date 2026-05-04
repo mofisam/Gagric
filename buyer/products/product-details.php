@@ -543,67 +543,7 @@ include '../../includes/header.php';
 
 <script>
 // Cart Manager - Consistent with browse.php
-const cartManager = window.cartManager || {
-    addToCart: function(productId, productName, productPrice, productUnit, quantity = 1) {
-        const cartKey = 'greenagric_cart';
-        let cart = JSON.parse(localStorage.getItem(cartKey) || '[]');
-        
-        // Check if product already in cart
-        const existingIndex = cart.findIndex(item => item.productId == productId);
-        
-        if (existingIndex >= 0) {
-            // Update quantity
-            cart[existingIndex].quantity += quantity;
-        } else {
-            // Add new item
-            cart.push({
-                productId: productId,
-                productName: productName,
-                productPrice: parseFloat(productPrice),
-                productUnit: productUnit,
-                quantity: quantity
-            });
-        }
-        
-        // Save to localStorage
-        localStorage.setItem(cartKey, JSON.stringify(cart));
-        
-        // Update cart count
-        updateCartCount();
-        
-        return true;
-    },
-    
-    updateCartItem: function(productId, quantity) {
-        const cartKey = 'greenagric_cart';
-        let cart = JSON.parse(localStorage.getItem(cartKey) || '[]');
-        
-        const existingIndex = cart.findIndex(item => item.productId == productId);
-        
-        if (existingIndex >= 0) {
-            if (quantity <= 0) {
-                // Remove item if quantity is 0 or less
-                cart.splice(existingIndex, 1);
-            } else {
-                // Update quantity
-                cart[existingIndex].quantity = quantity;
-            }
-            
-            // Save to localStorage
-            localStorage.setItem(cartKey, JSON.stringify(cart));
-            updateCartCount();
-            return true;
-        }
-        
-        return false;
-    },
-    
-    getCartItem: function(productId) {
-        const cartKey = 'greenagric_cart';
-        let cart = JSON.parse(localStorage.getItem(cartKey) || '[]');
-        return cart.find(item => item.productId == productId);
-    }
-};
+
 
 // Wishlist functionality
 async function toggleWishlist() {
@@ -716,14 +656,16 @@ function updateTotalPrice() {
     }
 }
 
-function addToCart() {
+async function addToCart() {
+    const button = document.querySelector('.action-buttons .btn-success');
+
     const productId = document.getElementById('productId').value;
     const productName = document.getElementById('productName').value;
     const productPrice = parseFloat(document.getElementById('productPrice').value);
     const productUnit = document.getElementById('productUnit').value;
     const quantity = parseInt(document.getElementById('quantity').value);
     const minQuantity = parseInt(document.getElementById('minOrderQuantity').value) || 1;
-    
+
     // Validate min order quantity
     if (quantity < minQuantity) {
         showToast(`Minimum order quantity is ${minQuantity} ${productUnit}`, 'warning');
@@ -731,12 +673,44 @@ function addToCart() {
         updateTotalPrice();
         return;
     }
-    
-    // Add to cart using cart manager
-    cartManager.addToCart(productId, productName, productPrice, productUnit, quantity);
-    
-    // Show success message
-    showToast(`${quantity} ${productUnit} of ${productName} added to cart!`, 'success');
+
+    // Button loading state
+    const originalHTML = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="bi bi-hourglass-split me-2"></i> Adding...';
+
+    try {
+        // Get image filename (same logic as browse page)
+        const imageEl = document.getElementById('mainImage');
+        let imageName = null;
+
+        if (imageEl && imageEl.src) {
+            imageName = imageEl.src.split('/').pop();
+        }
+
+        // ✅ Use side cart
+        await window.sideCart.addToCart(
+            productId,
+            productName,
+            productPrice,
+            productUnit,
+            quantity,
+            imageName
+        );
+
+        // Optional animation feedback
+        button.classList.add('added-animation');
+        setTimeout(() => {
+            button.classList.remove('added-animation');
+        }, 600);
+
+    } catch (error) {
+        console.error('Failed to add to cart:', error);
+        showToast('Failed to add to cart', 'error');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+    }
 }
 
 function buyNow() {
@@ -947,5 +921,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 </style>
-
+<?php include '../../includes/side-cart.php'; ?>
 <?php include '../../includes/footer.php'; ?>
