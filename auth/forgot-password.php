@@ -34,13 +34,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($user) {
                 // Generate secure reset token
                 $reset_token = bin2hex(random_bytes(32));
-                $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
                 
                 // Delete any existing tokens for this email
                 $db->query("DELETE FROM password_resets WHERE email = ? OR expires_at < NOW()", [$email]);
                 
                 // Store new token in database
-                $db->query("INSERT INTO password_resets (email, token, expires_at, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)", 
+                $db->query("INSERT INTO password_resets (email, token, expires_at, ip_address, user_agent) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR), ?, ?)", 
                           [$email, $reset_token, $expires, $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT'] ?? '']);
                 
                 // Create reset link
