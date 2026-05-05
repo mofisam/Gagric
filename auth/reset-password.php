@@ -20,6 +20,7 @@ $token = '';
 
 // Check if token is provided
 $token = $_GET['token'] ?? '';
+$hashed_token = hash('sha256', $token);
 
 if (empty($token)) {
     $error = '
@@ -40,7 +41,7 @@ if (empty($token)) {
         AND pr.expires_at > NOW() 
         AND pr.used_at IS NULL 
         AND u.is_active = TRUE
-    ", [$token]);
+    ", [$hashed_token]);
     
     if (!$reset) {
         $error = '
@@ -85,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
         ';
     } else {
         // Verify token again (prevent race condition)
-        $reset = $db->fetchOne("SELECT * FROM password_resets WHERE token = ? AND used_at IS NULL AND expires_at > NOW()", [$token]);
+        $reset = $db->fetchOne("SELECT * FROM password_resets WHERE token = ? AND used_at IS NULL AND expires_at > NOW()", [$hashed_token]);
         
         if (!$reset) {
             $error = '
@@ -106,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
                           [$password_hash, $reset['email']]);
                 
                 // Mark token as used
-                $db->query("UPDATE password_resets SET used_at = NOW() WHERE token = ?", [$token]);
+                $db->query("UPDATE password_resets SET used_at = NOW() WHERE token = ?", [$hashed_token]);
                 
                 // Delete expired tokens for this email
                 $db->query("DELETE FROM password_resets WHERE email = ? AND expires_at <= NOW()", [$reset['email']]);
