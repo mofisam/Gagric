@@ -308,7 +308,7 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/store/bank-details.php">
+                               href="<?php echo BASE_URL; ?>/seller/finances/bank-details.php">
                                 <i class="bi bi-bank me-1"></i>
                                 Bank Details
                             </a>

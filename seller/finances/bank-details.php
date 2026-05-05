@@ -1,17 +1,18 @@
 <?php
-require_once '../../includes/auth.php';
+require_once __DIR__ . '/../../includes/auth.php';
 requireSeller();
-require_once '../../includes/header.php';
-require_once '../../includes/functions.php';
-require_once '../../classes/Database.php';
+require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../classes/Database.php';
+require_once __DIR__ . '/../../config/paystack.php';
+
+$page_title = "Bank Details";
+$page_css = 'dashboard.css';
 
 $db = new Database();
 $seller_id = $_SESSION['user_id'];
 $error = '';
 $success = '';
-
-// Paystack configuration
-//define('PAYSTACK_SECRET_KEY', 'YOUR_PAYSTACK_SECRET_KEY'); // Move to config file
+$bank_list_error = '';
 
 // Get seller profile for sidebar
 $seller_profile = $db->fetchOne("
@@ -24,64 +25,42 @@ $bank_details = $db->fetchOne("SELECT * FROM seller_financial_info WHERE seller_
 
 // Fetch banks from Paystack
 $banks = [];
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, "https://api.paystack.co/bank?country=nigeria");
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Authorization: Bearer ' . PAYSTACK_SECRET_KEY
-]);
-$response = curl_exec($ch);
-$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-if ($http_code == 200) {
-    $result = json_decode($response, true);
-    if ($result['status']) {
-        $banks = $result['data'];
-    }
+$bank_response = PaystackAPI::getBanks('nigeria');
+if (!empty($bank_response['status']) && !empty($bank_response['data']) && is_array($bank_response['data'])) {
+    $banks = $bank_response['data'];
+} else {
+    $bank_list_error = $bank_response['message'] ?? 'Unable to load the bank list from Paystack.';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $settlement_frequency = $_POST['settlement_frequency'] ?? 'weekly';
+    $allowed_frequencies = ['daily', 'weekly', 'monthly'];
+
     $bank_data = [
-        'bank_name' => sanitizeInput($_POST['bank_name']),
-        'bank_code' => sanitizeInput($_POST['bank_code']),
-        'account_number' => sanitizeInput($_POST['account_number']),
-        'account_name' => sanitizeInput($_POST['account_name']),
-        'settlement_frequency' => $_POST['settlement_frequency']
+        'bank_name' => sanitizeInput($_POST['bank_name'] ?? ''),
+        'bank_code' => sanitizeInput($_POST['bank_code'] ?? ''),
+        'account_number' => sanitizeInput($_POST['account_number'] ?? ''),
+        'account_name' => sanitizeInput($_POST['account_name'] ?? ''),
+        'settlement_frequency' => in_array($settlement_frequency, $allowed_frequencies, true) ? $settlement_frequency : 'weekly'
     ];
 
     // Basic validation
-    if (empty($bank_data['bank_name']) || empty($bank_data['account_number']) || empty($bank_data['account_name'])) {
+    if (empty($bank_data['bank_name']) || empty($bank_data['bank_code']) || empty($bank_data['account_number'])) {
         $error = 'Please fill in all required fields';
     } elseif (!preg_match('/^[0-9]{10}$/', $bank_data['account_number'])) {
         $error = 'Please enter a valid 10-digit account number';
     } else {
         try {
             // Verify account with Paystack before saving
-            $verify_url = "https://api.paystack.co/bank/resolve?account_number={$bank_data['account_number']}&bank_code={$bank_data['bank_code']}";
-            
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $verify_url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . PAYSTACK_SECRET_KEY
-            ]);
-            $verify_response = curl_exec($ch);
-            $verify_http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            
-            if ($verify_http_code == 200) {
-                $verify_result = json_decode($verify_response, true);
-                if ($verify_result['status']) {
-                    // Account verified successfully
-                    $bank_data['account_name'] = $verify_result['data']['account_name'];
-                    $bank_data['is_bank_verified'] = 1;
-                    $bank_data['bank_verified_at'] = date('Y-m-d H:i:s');
-                } else {
-                    $error = 'Could not verify account: ' . ($verify_result['message'] ?? 'Unknown error');
-                }
+            $verify_result = PaystackAPI::resolveBankAccount($bank_data['account_number'], $bank_data['bank_code']);
+
+            if (!empty($verify_result['status']) && !empty($verify_result['data']['account_name'])) {
+                // Account verified successfully
+                $bank_data['account_name'] = $verify_result['data']['account_name'];
+                $bank_data['is_bank_verified'] = 1;
+                $bank_data['bank_verified_at'] = date('Y-m-d H:i:s');
             } else {
-                $error = 'Failed to verify account with Paystack. Please try again.';
+                $error = 'Could not verify account: ' . ($verify_result['message'] ?? 'Unknown error');
             }
             
             if (empty($error)) {
@@ -103,25 +82,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Get seller stats for sidebar
+$pending_products = $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status = 'pending'", [$seller_id]);
+$low_stock = $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status = 'approved' AND stock_quantity <= low_stock_alert_level AND stock_quantity > 0", [$seller_id]);
+$pending_orders = $db->fetchOne("SELECT COUNT(*) as count FROM order_items WHERE seller_id = ? AND status = 'pending'", [$seller_id]);
+$today_orders = $db->fetchOne("SELECT COUNT(*) as count FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.seller_id = ? AND DATE(o.created_at) = CURDATE()", [$seller_id]);
+
 $seller_stats = [
-    'pending_products' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status = 'pending'", [$seller_id])['count'],
-    'low_stock_count' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE seller_id = ? AND status = 'approved' AND stock_quantity <= low_stock_alert_level AND stock_quantity > 0", [$seller_id])['count'],
-    'pending_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM order_items WHERE seller_id = ? AND status = 'pending'", [$seller_id])['count'],
-    'today_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.seller_id = ? AND DATE(o.created_at) = CURDATE()", [$seller_id])['count'],
+    'pending_products' => (int)($pending_products['count'] ?? 0),
+    'low_stock_count' => (int)($low_stock['count'] ?? 0),
+    'pending_orders' => (int)($pending_orders['count'] ?? 0),
+    'today_orders' => (int)($today_orders['count'] ?? 0),
 ];
 
 // Set seller info for sidebar
 $_SESSION['business_name'] = $seller_profile['business_name'] ?? 'Your Store';
 $_SESSION['seller_rating'] = $seller_profile['avg_rating'] ?? 0;
 
-$page_title = "Bank Details";
-$page_css = 'dashboard.css';
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <?php include '../includes/sidebar.php'; ?>
+        <?php include __DIR__ . '/../includes/sidebar.php'; ?>
         
         <!-- Main Content -->
         <main class="col-lg-10 col-md-9 ms-sm-auto px-md-4">
@@ -154,7 +137,7 @@ $page_css = 'dashboard.css';
             <?php if ($error): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="bi bi-exclamation-triangle me-2"></i>
-                    <?php echo $error; ?>
+                    <?php echo htmlspecialchars($error); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
@@ -162,7 +145,15 @@ $page_css = 'dashboard.css';
             <?php if ($success): ?>
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <i class="bi bi-check-circle me-2"></i>
-                    <?php echo $success; ?>
+                    <?php echo htmlspecialchars($success); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($bank_list_error): ?>
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <?php echo htmlspecialchars($bank_list_error); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
@@ -187,7 +178,7 @@ $page_css = 'dashboard.css';
                                                 <option value="">-- Choose your bank --</option>
                                                 <?php foreach ($banks as $bank): ?>
                                                     <option value="<?php echo htmlspecialchars($bank['name']); ?>" 
-                                                            data-code="<?php echo $bank['code']; ?>"
+                                                            data-code="<?php echo htmlspecialchars($bank['code']); ?>"
                                                             <?php echo ($bank_details['bank_name'] ?? '') == $bank['name'] ? 'selected' : ''; ?>>
                                                         <?php echo htmlspecialchars($bank['name']); ?>
                                                     </option>
@@ -199,7 +190,7 @@ $page_css = 'dashboard.css';
                                         <div class="mb-3">
                                             <label for="bank_code" class="form-label fw-bold">Bank Code</label>
                                             <input type="text" class="form-control bg-light" id="bank_code" name="bank_code" 
-                                                   value="<?php echo $bank_details['bank_code'] ?? ''; ?>" 
+                                                   value="<?php echo htmlspecialchars($bank_details['bank_code'] ?? ''); ?>" 
                                                    placeholder="Auto-filled" readonly>
                                         </div>
                                     </div>
@@ -211,7 +202,7 @@ $page_css = 'dashboard.css';
                                             <label for="account_number" class="form-label fw-bold">Account Number *</label>
                                             <div class="input-group">
                                                 <input type="text" class="form-control" id="account_number" name="account_number" 
-                                                       value="<?php echo $bank_details['account_number'] ?? ''; ?>" 
+                                                       value="<?php echo htmlspecialchars($bank_details['account_number'] ?? ''); ?>" 
                                                        maxlength="10" pattern="[0-9]{10}" 
                                                        placeholder="Enter 10-digit account number" required>
                                                 <button class="btn btn-outline-primary" type="button" id="verifyAccountBtn" onclick="verifyAccount()">
@@ -228,7 +219,7 @@ $page_css = 'dashboard.css';
                                             <label for="account_name" class="form-label fw-bold">Account Name *</label>
                                             <div class="input-group">
                                                 <input type="text" class="form-control" id="account_name" name="account_name" 
-                                                       value="<?php echo $bank_details['account_name'] ?? ''; ?>" 
+                                                       value="<?php echo htmlspecialchars($bank_details['account_name'] ?? ''); ?>" 
                                                        placeholder="Will be auto-verified" readonly>
                                                 <span class="input-group-text" id="verificationStatus">
                                                     <i class="bi bi-question-circle text-muted"></i>
@@ -297,7 +288,7 @@ $page_css = 'dashboard.css';
                                     <label class="text-muted small mb-1">Account Number</label>
                                     <div class="d-flex align-items-center">
                                         <i class="bi bi-credit-card me-2 text-primary"></i>
-                                        <span class="font-monospace"><?php echo $bank_details['account_number']; ?></span>
+                                        <span class="font-monospace"><?php echo htmlspecialchars($bank_details['account_number']); ?></span>
                                     </div>
                                 </div>
                                 
@@ -332,7 +323,7 @@ $page_css = 'dashboard.css';
                                     <div>
                                         <span class="badge bg-info">
                                             <i class="bi bi-calendar me-1"></i>
-                                            <?php echo ucfirst($bank_details['settlement_frequency'] ?? 'weekly'); ?>
+                                            <?php echo htmlspecialchars(ucfirst($bank_details['settlement_frequency'] ?? 'weekly')); ?>
                                         </span>
                                     </div>
                                 </div>
@@ -405,30 +396,38 @@ $page_css = 'dashboard.css';
 
 <script>
 // Store bank data for quick access
-const bankData = <?php echo json_encode($banks); ?>;
+const bankData = <?php echo json_encode($banks, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+
+function clearVerificationState() {
+    document.getElementById('account_name').value = '';
+    document.getElementById('verificationStatus i').className = 'bi bi-question-circle text-muted';
+}
+
+function updateVerifyButtonState() {
+    const verifyBtn = document.getElementById('verifyAccountBtn');
+    const accountNumber = document.getElementById('account_number').value;
+    const bankCode = document.getElementById('bank_code').value;
+    const canVerify = accountNumber.length === 10 && bankCode;
+
+    verifyBtn.disabled = !canVerify;
+    verifyBtn.classList.toggle('btn-primary', canVerify);
+    verifyBtn.classList.toggle('btn-outline-primary', !canVerify);
+}
 
 // Auto-fill bank code when bank is selected
 document.getElementById('bank_name').addEventListener('change', function() {
     const selectedOption = this.options[this.selectedIndex];
     const bankCode = selectedOption.getAttribute('data-code');
     document.getElementById('bank_code').value = bankCode || '';
+    clearVerificationState();
+    updateVerifyButtonState();
 });
 
 // Account number validation
 document.getElementById('account_number').addEventListener('input', function() {
     this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
-    
-    // Enable/disable verify button based on length
-    const verifyBtn = document.getElementById('verifyAccountBtn');
-    if (this.value.length === 10) {
-        verifyBtn.disabled = false;
-        verifyBtn.classList.remove('btn-outline-primary');
-        verifyBtn.classList.add('btn-primary');
-    } else {
-        verifyBtn.disabled = true;
-        verifyBtn.classList.add('btn-outline-primary');
-        verifyBtn.classList.remove('btn-primary');
-    }
+    clearVerificationState();
+    updateVerifyButtonState();
 });
 
 // Function to verify account with Paystack
@@ -439,6 +438,11 @@ function verifyAccount() {
     
     if (!bankName) {
         showToast('Please select a bank first', 'warning');
+        return;
+    }
+
+    if (!bankCode) {
+        showToast('Please select a valid bank first', 'warning');
         return;
     }
     
@@ -460,15 +464,28 @@ function verifyAccount() {
     // Make AJAX call to verify account
     fetch('verify-account.php', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
         },
         body: JSON.stringify({
             account_number: accountNumber,
             bank_code: bankCode
         })
     })
-    .then(response => response.json())
+    .then(async response => {
+        const data = await response.json().catch(() => ({
+            success: false,
+            message: 'Invalid response from verification server'
+        }));
+
+        if (!response.ok && !data.message) {
+            data.message = 'Verification request failed';
+        }
+
+        return data;
+    })
     .then(data => {
         if (data.success) {
             accountNameField.value = data.account_name;
@@ -490,8 +507,8 @@ function verifyAccount() {
         showToast('Error verifying account. Please try again.', 'danger');
     })
     .finally(() => {
-        verifyBtn.disabled = false;
         verifyBtn.innerHTML = '<i class="bi bi-check-circle"></i> Verify';
+        updateVerifyButtonState();
     });
 }
 
@@ -499,15 +516,16 @@ function verifyAccount() {
 document.getElementById('bankForm').addEventListener('submit', function(e) {
     const accountName = document.getElementById('account_name').value;
     const bankName = document.getElementById('bank_name').value;
+    const bankCode = document.getElementById('bank_code').value;
     const accountNumber = document.getElementById('account_number').value;
     
-    if (!bankName || !accountNumber || !accountName) {
+    if (!bankName || !bankCode || accountNumber.length !== 10) {
         e.preventDefault();
-        showToast('Please fill in all required fields and verify your account', 'warning');
+        showToast('Please select a bank and enter a valid 10-digit account number', 'warning');
         return false;
     }
     
-    if (accountName === 'Verifying with Paystack...' || accountName.includes('Verifying')) {
+    if (accountName.includes('Verifying')) {
         e.preventDefault();
         showToast('Please wait for account verification to complete', 'warning');
         return false;
@@ -520,6 +538,12 @@ function resetForm() {
     document.getElementById('account_name').value = '';
     document.getElementById('verificationStatus i').className = 'bi bi-question-circle text-muted';
     showToast('Form has been reset', 'info');
+}
+
+function escapeHtml(value) {
+    const wrapper = document.createElement('div');
+    wrapper.textContent = value;
+    return wrapper.innerHTML;
 }
 
 function showToast(message, type) {
@@ -546,7 +570,7 @@ function showToast(message, type) {
         <div class="d-flex">
             <div class="toast-body">
                 <i class="bi ${type === 'success' ? 'bi-check-circle' : type === 'danger' ? 'bi-exclamation-triangle' : 'bi-info-circle'} me-2"></i>
-                ${message}
+                ${escapeHtml(message)}
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
         </div>
@@ -566,6 +590,8 @@ function showToast(message, type) {
         toast.remove();
     });
 }
+
+document.addEventListener('DOMContentLoaded', updateVerifyButtonState);
 
 // Add custom styles
 const style = document.createElement('style');
@@ -591,4 +617,4 @@ style.textContent = `
 document.head.appendChild(style);
 </script>
 
-<?php include '../../includes/footer.php'; ?>
+<?php include __DIR__ . '/../../includes/footer.php'; ?>

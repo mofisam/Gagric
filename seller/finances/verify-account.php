@@ -1,61 +1,60 @@
 <?php
 // verify-account.php
-require_once '../includes/auth.php';
-require_once '../includes/functions.php';
-require_once '../classes/Database.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../config/paystack.php';
 
 header('Content-Type: application/json');
 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+    exit;
+}
+
 // Check if user is logged in and is seller
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'seller') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'seller') {
+    http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
 
-// Paystack configuration
-require_once '../../config/constants.php';
-
 // Get POST data
 $input = json_decode(file_get_contents('php://input'), true);
-$account_number = $input['account_number'] ?? '';
-$bank_code = $input['bank_code'] ?? '';
+if (!is_array($input)) {
+    $input = $_POST;
+}
+
+$account_number = sanitizeInput($input['account_number'] ?? '');
+$bank_code = sanitizeInput($input['bank_code'] ?? '');
 
 // Validate input
 if (empty($account_number) || empty($bank_code)) {
+    http_response_code(422);
     echo json_encode(['success' => false, 'message' => 'Account number and bank code are required']);
     exit;
 }
 
+if (!preg_match('/^[0-9]{10}$/', $account_number)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'message' => 'Please enter a valid 10-digit account number']);
+    exit;
+}
+
 // Verify account with Paystack
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, "https://api.paystack.co/bank/resolve?account_number={$account_number}&bank_code={$bank_code}");
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Authorization: Bearer ' . PAYSTACK_SECRET_KEY
-]);
+$result = PaystackAPI::resolveBankAccount($account_number, $bank_code);
 
-$response = curl_exec($ch);
-$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-if ($http_code == 200) {
-    $result = json_decode($response, true);
-    if ($result['status']) {
-        echo json_encode([
-            'success' => true,
-            'account_name' => $result['data']['account_name'],
-            'message' => 'Account verified successfully'
-        ]);
-    } else {
-        echo json_encode([
-            'success' => false,
-            'message' => $result['message'] ?? 'Verification failed'
-        ]);
-    }
+if (!empty($result['status']) && !empty($result['data']['account_name'])) {
+    echo json_encode([
+        'success' => true,
+        'account_name' => $result['data']['account_name'],
+        'message' => 'Account verified successfully'
+    ]);
 } else {
+    http_response_code(422);
     echo json_encode([
         'success' => false,
-        'message' => 'Failed to connect to Paystack'
+        'message' => $result['message'] ?? 'Verification failed'
     ]);
 }
 ?>
