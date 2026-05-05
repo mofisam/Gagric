@@ -4,12 +4,10 @@ require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../classes/Database.php';
 
-// Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
     header('Location: ../index.php');
     exit;
@@ -20,80 +18,84 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
-    
+
     if (!empty($email)) {
         require_once '../classes/Validation.php';
         require_once '../classes/Mailer.php';
-        
+
         if (Validation::email($email)) {
             $db = new Database();
-            
+
             // Check if user exists
-            $user = $db->fetchOne("SELECT id, first_name, last_name FROM users WHERE email = ? AND is_active = TRUE", [$email]);
-            
+            $user = $db->fetchOne(
+                "SELECT id, first_name, last_name 
+                 FROM users 
+                 WHERE email = ? AND is_active = TRUE",
+                [$email]
+            );
+
             if ($user) {
-                // Generate secure reset token
+                // 🔐 Generate secure token
                 $reset_token = bin2hex(random_bytes(32));
-                
-                // Delete any existing tokens for this email
-                $db->query("DELETE FROM password_resets WHERE email = ? OR expires_at < NOW()", [$email]);
-                
-                // Store new token in database
-                $db->query("INSERT INTO password_resets (email, token, expires_at, ip_address, user_agent) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR), ?, ?)", 
-                          [$email, $reset_token, $expires, $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT'] ?? '']);
-                
-                // Create reset link
+                $hashed_token = hash('sha256', $reset_token);
+
+                // 🧹 Clean old tokens
+                $db->query("DELETE FROM password_resets WHERE email = ?", [$email]);
+                $db->query("DELETE FROM password_resets WHERE expires_at < NOW()");
+
+                // 💾 Store token (MySQL handles time)
+                $db->query("
+                    INSERT INTO password_resets 
+                    (email, token, expires_at, ip_address, user_agent) 
+                    VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR), ?, ?)
+                ", [
+                    $email,
+                    $hashed_token,
+                    $_SERVER['REMOTE_ADDR'],
+                    $_SERVER['HTTP_USER_AGENT'] ?? ''
+                ]);
+
+                // 🔗 Create reset link
                 $reset_link = BASE_URL . "/auth/reset-password.php?token=" . $reset_token;
-                
-                // Send email using Mailer with debug mode ON to see errors
+
                 try {
-                    // Create mailer instance with debug mode ON
-                    $mailer = new Mailer(false); // Set to true for debugging
-                    
-                    // Prepare user data
+                    $mailer = new Mailer(false);
+
                     $full_name = $user['first_name'] . ' ' . $user['last_name'];
-                    
-                    // Send password reset email
-                    $email_sent = $mailer->sendPasswordReset($email, $full_name, $reset_link);
-                    
-                    if ($email_sent) {
-                        $message = '
-                        <div class="alert alert-success">
-                            <i class="bi bi-check-circle-fill me-2"></i>
-                            <strong>Reset link sent successfully!</strong><br>
-                            We have sent a password reset link to <strong>' . htmlspecialchars($email) . '</strong>.
-                            Please check your inbox (and spam folder).
-                        </div>
-                        ';
-                        
-                        // Log success
-                        error_log("Password reset email sent successfully to: " . $email);
-                    } else {
-                        // Get the error from mailer
-                        $mailer_error = $mailer->getLastError();
-                        error_log("Mailer error: " . $mailer_error);
-                        
-                        $message = '
-                        <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            <strong>Reset link generated!</strong><br>
-                            However, we couldn\'t send the email. Technical details: ' . htmlspecialchars($mailer_error) . '<br>
-                            Please try again or contact support.
-                        </div>
-                        ';
-                    }
-                    
-                } catch (Exception $e) {
-                    error_log("Password reset email exception: " . $e->getMessage());
+
+                    $email_sent = $mailer->sendPasswordReset(
+                        $email,
+                        $full_name,
+                        $reset_link
+                    );
+
+                    // ✅ Always show same message (security)
                     $message = '
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle-fill me-2"></i>
-                        If the email exists, reset instructions will be sent.
+                        If the email exists in our system, you will receive reset instructions shortly.
+                    </div>
+                    ';
+
+                    if ($email_sent) {
+                        error_log("Password reset email sent to: " . $email);
+                    } else {
+                        error_log("Mailer error: " . $mailer->getLastError());
+                    }
+
+                } catch (Exception $e) {
+                    error_log("Mailer exception: " . $e->getMessage());
+
+                    $message = '
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        If the email exists in our system, you will receive reset instructions shortly.
                     </div>
                     ';
                 }
+
             } else {
-                // Don't reveal if email exists (security)
+                // 🔐 Same message (no enumeration)
                 $message = '
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle-fill me-2"></i>
@@ -101,18 +103,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 ';
             }
+
         } else {
             $error = '
             <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>
                 Please enter a valid email address
             </div>
             ';
         }
+
     } else {
         $error = '
         <div class="alert alert-danger">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
             Please enter your email address
         </div>
         ';
