@@ -397,7 +397,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <script>
 // Store bank data for quick access
 const bankData = <?php echo json_encode($banks, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
-
+//console.log("1");
 function clearVerificationState() {
     document.getElementById('account_name').value = '';
     document.getElementById('verificationStatus i').className = 'bi bi-question-circle text-muted';
@@ -553,7 +553,7 @@ function showToast(message, type) {
         toastContainer = document.createElement('div');
         toastContainer.id = 'toastContainer';
         toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-        toastContainer.style.zIndex = '9999';
+        toastContainer.customStyle.zIndex = '9999';
         document.body.appendChild(toastContainer);
     }
     
@@ -594,8 +594,8 @@ function showToast(message, type) {
 document.addEventListener('DOMContentLoaded', updateVerifyButtonState);
 
 // Add custom styles
-const style = document.createElement('style');
-style.textContent = `
+const customStyle = document.createElement('style');
+customStyle.textContent = `
     .dashboard-card {
         transition: transform 0.2s, box-shadow 0.2s;
     }
@@ -614,7 +614,7 @@ style.textContent = `
         color: #198754;
     }
 `;
-document.head.appendChild(style);
+document.head.appendChild(customStyle);
 </script>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>
