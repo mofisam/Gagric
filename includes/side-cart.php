@@ -327,7 +327,7 @@ ini_set('display_errors', 1);
                 <i class="bi bi-cart me-2"></i>View Full Cart
             </a>
             <?php if (isLoggedIn()): ?>
-                <a href="checkout.php" class="btn btn-success">
+                <a href="<?php echo BASE_URL; ?>/buyer/cart/checkout.php" class="btn btn-success">
                     <i class="bi bi-arrow-right me-2"></i>Proceed to Checkout
                 </a>
             <?php else: ?>
