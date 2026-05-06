@@ -397,10 +397,14 @@ require_once __DIR__ . '/../../includes/header.php';
 <script>
 // Store bank data for quick access
 const bankData = <?php echo json_encode($banks, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
-//console.log("1");
+
 function clearVerificationState() {
     document.getElementById('account_name').value = '';
-    document.getElementById('verificationStatus i').className = 'bi bi-question-circle text-muted';
+    
+    const icon = document.querySelector('#verificationStatus i');
+    if (icon) {
+        icon.className = 'bi bi-question-circle text-muted';
+    }
 }
 
 function updateVerifyButtonState() {
@@ -536,7 +540,10 @@ function resetForm() {
     document.getElementById('bankForm').reset();
     document.getElementById('bank_code').value = '';
     document.getElementById('account_name').value = '';
-    document.getElementById('verificationStatus i').className = 'bi bi-question-circle text-muted';
+    const icon = document.querySelector('#verificationStatus i');
+    if (icon) {
+        icon.className = 'bi bi-question-circle text-muted';
+    }
     showToast('Form has been reset', 'info');
 }
 
@@ -553,7 +560,7 @@ function showToast(message, type) {
         toastContainer = document.createElement('div');
         toastContainer.id = 'toastContainer';
         toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-        toastContainer.customStyle.zIndex = '9999';
+        toastContainer.style.zIndex = '9999';
         document.body.appendChild(toastContainer);
     }
     
