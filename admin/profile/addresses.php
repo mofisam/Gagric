@@ -10,11 +10,10 @@ $user_id = getCurrentUserId();
 
 // Get user addresses
 $addresses = $db->fetchAll("
-    SELECT ua.*, s.name as state_name, l.name as lga_name, c.name as city_name 
+    SELECT ua.*, s.name as state_name, l.name as lga_name, ua.city as city_name
     FROM user_addresses ua 
     JOIN states s ON ua.state_id = s.id 
     JOIN lgas l ON ua.lga_id = l.id 
-    JOIN cities c ON ua.city_id = c.id 
     WHERE ua.user_id = ? 
     ORDER BY ua.is_default DESC, ua.created_at DESC
 ", [$user_id]);
@@ -34,13 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone = trim($_POST['phone']);
         $state_id = $_POST['state_id'];
         $lga_id = $_POST['lga_id'];
-        $city_id = $_POST['city_id'];
+        $city = trim($_POST['city'] ?? '');
         $address_line = trim($_POST['address_line']);
         $landmark = trim($_POST['landmark']);
         $is_default = isset($_POST['is_default']) ? 1 : 0;
         
         // Validation
-        if (empty($contact_person) || empty($phone) || empty($state_id) || empty($address_line)) {
+        if (empty($contact_person) || empty($phone) || empty($state_id) || empty($lga_id) || empty($city) || empty($address_line)) {
             $error = 'Please fill in all required fields';
         } else {
             // If setting as default, update other addresses
@@ -57,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'phone' => $phone,
                 'state_id' => $state_id,
                 'lga_id' => $lga_id,
-                'city_id' => $city_id,
+                'city' => $city,
                 'address_line' => $address_line,
                 'landmark' => $landmark,
                 'is_default' => $is_default
@@ -190,10 +189,8 @@ include '../../includes/header.php';
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label for="city_id" class="form-label">City *</label>
-                                <select class="form-select" id="city_id" name="city_id" required disabled>
-                                    <option value="">Select City</option>
-                                </select>
+                                <label for="city" class="form-label">City / Town *</label>
+                                <input type="text" class="form-control" id="city" name="city" required>
                             </div>
                         </div>
                         
@@ -321,13 +318,10 @@ include '../../includes/header.php';
 document.getElementById('state_id').addEventListener('change', function() {
     const stateId = this.value;
     const lgaSelect = document.getElementById('lga_id');
-    const citySelect = document.getElementById('city_id');
     
     if (!stateId) {
         lgaSelect.disabled = true;
-        citySelect.disabled = true;
         lgaSelect.innerHTML = '<option value="">Select LGA</option>';
-        citySelect.innerHTML = '<option value="">Select City</option>';
         return;
     }
     
@@ -352,55 +346,10 @@ document.getElementById('state_id').addEventListener('change', function() {
                 console.error('Failed to load LGAs:', result.error || 'Unknown error');
                 lgaSelect.innerHTML = '<option value="">Error loading LGAs</option>';
             }
-            
-            citySelect.disabled = true;
-            citySelect.innerHTML = '<option value="">Select City</option>';
         })
         .catch(err => {
             console.error("Error loading LGAs:", err);
             lgaSelect.innerHTML = '<option value="">Network error</option>';
-        });
-});
-
-// Load Cities based on selected LGA
-document.getElementById('lga_id').addEventListener('change', function() {
-    const lgaId = this.value;
-    const citySelect = document.getElementById('city_id');
-    
-    if (!lgaId) {
-        citySelect.disabled = true;
-        citySelect.innerHTML = '<option value="">Select City</option>';
-        return;
-    }
-    
-    // Fetch Cities for this LGA
-    fetch(`../../api/locations/cities.php?lga_id=${lgaId}`)
-        .then(response => response.json())
-        .then(result => {
-            console.log('Cities API response:', result); // Debug log
-            
-            // Check if the request was successful and has cities data
-            // Adjust this based on your actual cities.php API response structure
-            let cities = [];
-            
-            if (result.success && result.cities) {
-                cities = result.cities;
-            } else if (Array.isArray(result)) {
-                // If API returns array directly
-                cities = result;
-            } else if (result.data && Array.isArray(result.data)) {
-                cities = result.data;
-            }
-            
-            citySelect.innerHTML = '<option value="">Select City</option>';
-            cities.forEach(city => {
-                citySelect.innerHTML += `<option value="${city.id}">${city.name}</option>`;
-            });
-            citySelect.disabled = false;
-        })
-        .catch(err => {
-            console.error("Error loading cities:", err);
-            citySelect.innerHTML = '<option value="">Network error</option>';
         });
 });
 </script>

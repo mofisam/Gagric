@@ -18,13 +18,12 @@ $order = $db->fetchOne("
     SELECT o.*, u.first_name, u.last_name, u.email, u.phone,
            os.shipping_name, os.shipping_phone, os.address_line, os.landmark,
            os.tracking_number, os.logistics_partner, os.estimated_delivery,
-           s.name as state_name, l.name as lga_name, c.name as city_name
+           s.name as state_name, l.name as lga_name, os.city as city_name
     FROM orders o 
     JOIN users u ON o.buyer_id = u.id 
     LEFT JOIN order_shipping_details os ON o.id = os.order_id 
     LEFT JOIN states s ON os.state_id = s.id 
     LEFT JOIN lgas l ON os.lga_id = l.id 
-    LEFT JOIN cities c ON os.city_id = c.id 
     WHERE o.id = ?
 ", [$order_id]);
 

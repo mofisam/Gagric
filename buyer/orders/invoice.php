@@ -37,12 +37,11 @@ if (!$order_data) {
 
 // Get buyer information
 $buyer = $db->fetchOne("
-    SELECT u.*, ua.*, s.name as state_name, l.name as lga_name, c.name as city_name
+    SELECT u.*, ua.*, s.name as state_name, l.name as lga_name, ua.city as city_name
     FROM users u
     LEFT JOIN user_addresses ua ON u.id = ua.user_id AND ua.is_default = 1
     LEFT JOIN states s ON ua.state_id = s.id
     LEFT JOIN lgas l ON ua.lga_id = l.id
-    LEFT JOIN cities c ON ua.city_id = c.id
     WHERE u.id = ?
 ", [$user_id]);
 
@@ -58,29 +57,26 @@ $order_items = $db->fetchAll("
         ua.address_line as seller_address,
         ua.state_id as seller_state_id,
         ua.lga_id as seller_lga_id,
-        ua.city_id as seller_city_id,
+        ua.city as seller_city_name,
         ua.phone as seller_phone,
         s.name as seller_state_name,
-        l.name as seller_lga_name,
-        c.name as seller_city_name
+        l.name as seller_lga_name
     FROM order_items oi
     JOIN products p ON oi.product_id = p.id
     JOIN seller_profiles sp ON oi.seller_id = sp.user_id
     LEFT JOIN user_addresses ua ON sp.business_address_id = ua.id
     LEFT JOIN states s ON ua.state_id = s.id
     LEFT JOIN lgas l ON ua.lga_id = l.id
-    LEFT JOIN cities c ON ua.city_id = c.id
     WHERE oi.order_id = ?
     ORDER BY oi.id
 ", [$order_id]);
 
 // Get shipping details
 $shipping = $db->fetchOne("
-    SELECT os.*, s.name as state_name, l.name as lga_name, c.name as city_name 
+    SELECT os.*, s.name as state_name, l.name as lga_name, os.city as city_name
     FROM order_shipping_details os 
     JOIN states s ON os.state_id = s.id 
     JOIN lgas l ON os.lga_id = l.id 
-    JOIN cities c ON os.city_id = c.id 
     WHERE os.order_id = ?
 ", [$order_id]);
 

@@ -121,81 +121,147 @@ $page_title = "Personal Information";
 include '../../includes/header.php'; 
 ?>
 
-<div class="container py-4">
-    <div class="row">
-        <div class="col-md-3">
-            <div class="card mb-4">
-                <div class="card-body">
-                    <div class="text-center mb-3">
-                        <div class="bg-success rounded-circle d-inline-flex p-3 mb-2">
-                            <i class="bi bi-person text-white" style="font-size: 2rem;"></i>
+<!-- Custom Responsive Styles -->
+<style>
+    /* card hover effect for address cards (consistency) */
+    .profile-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .profile-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.75rem 1.5rem rgba(0,0,0,0.08);
+    }
+    /* make buttons on tiny screens stack nicely */
+    @media (max-width: 480px) {
+        .btn-group-sm-responsive {
+            display: flex;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+        }
+        .address-actions {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .address-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+    }
+    /* sidebar becomes cleaner on small screens */
+    @media (max-width: 767px) {
+        .sidebar-stats {
+            margin-bottom: 1rem;
+        }
+        .list-group-item {
+            padding: 0.7rem 1rem;
+        }
+    }
+    .form-label {
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+    .card-header.bg-success {
+        background: #198754 !important;
+    }
+    .rounded-pill-icon {
+        transition: all 0.2s;
+    }
+    .table-sm td, .table-sm th {
+        padding: 0.5rem;
+    }
+    .badge.rounded-pill {
+        font-weight: 500;
+    }
+    .verification-status {
+        transition: all 0.2s;
+    }
+</style>
+
+<div class="container py-3 py-md-4 px-3 px-md-4">
+    <div class="row g-4">
+        <!-- Sidebar - full width on mobile, 3 on desktop (consistent with addresses page) -->
+        <div class="col-12 col-md-4 col-lg-3">
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden sticky-md-top" style="top: 20px;">
+                <div class="card-body p-3 p-md-4 text-center text-md-start">
+                    <div class="d-flex d-md-block align-items-center gap-3 flex-md-column">
+                        <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex p-3 mx-auto mb-md-3">
+                            <i class="bi bi-person-fill text-success" style="font-size: 2rem;"></i>
                         </div>
-                        <h5 class="card-title"><?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?></h5>
-                        <p class="text-muted">Buyer Account</p>
+                        <div>
+                            <h5 class="card-title fw-bold mb-1"><?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?></h5>
+                            <p class="text-muted small">Buyer Account</p>
+                        </div>
                     </div>
-                    
-                    <div class="list-group">
-                        <a href="personal-info.php" class="list-group-item list-group-item-action active">
-                            <i class="bi bi-person me-2"></i> Personal Info
+                    <hr class="my-3">
+                    <div class="list-group list-group-flush">
+                        <a href="personal-info.php" class="list-group-item list-group-item-action active bg-success bg-opacity-10 text-success fw-semibold border-0 ps-0 py-2 d-flex align-items-center gap-2">
+                            <i class="bi bi-person fs-5"></i> Personal Info
                         </a>
-                        <a href="addresses.php" class="list-group-item list-group-item-action">
-                            <i class="bi bi-geo-alt me-2"></i> Addresses
+                        <a href="addresses.php" class="list-group-item list-group-item-action d-flex align-items-center gap-2 border-0 ps-0 py-2">
+                            <i class="bi bi-geo-alt fs-5"></i> Addresses
                         </a>
-                        <a href="payment-methods.php" class="list-group-item list-group-item-action">
-                            <i class="bi bi-credit-card me-2"></i> Payment Methods
+                        <!--
+                        <a href="payment-methods.php" class="list-group-item list-group-item-action d-flex align-items-center gap-2 border-0 ps-0 py-2">
+                            <i class="bi bi-credit-card fs-5"></i> Payment Methods
                         </a>
-                        <a href="../dashboard.php" class="list-group-item list-group-item-action">
-                            <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
+                        -->
+                        <a href="../dashboard.php" class="list-group-item list-group-item-action d-flex align-items-center gap-2 border-0 ps-0 py-2 mt-2 text-muted">
+                            <i class="bi bi-arrow-left-short fs-5"></i> Dashboard
                         </a>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-9">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">Personal Information</h5>
+
+        <!-- Main content - full width on small screens -->
+        <div class="col-12 col-md-8 col-lg-9">
+            <!-- Profile Update Card -->
+            <div class="card shadow-sm border-0 rounded-4 mb-4 overflow-hidden profile-card">
+                <div class="card-header bg-success text-white py-3">
+                    <h5 class="mb-0 fw-semibold"><i class="bi bi-pencil-square me-2"></i> Personal Information</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-3 p-md-4">
                     <?php if ($message): ?>
-                        <div class="alert alert-<?php echo $message_type ?? 'success'; ?> alert-dismissible fade show" role="alert">
+                        <div class="alert alert-<?php echo $message_type ?? 'success'; ?> alert-dismissible fade show rounded-3" role="alert">
+                            <i class="bi bi-<?php echo ($message_type ?? 'success') == 'success' ? 'check-circle-fill' : 'info-circle-fill'; ?> me-2"></i>
                             <?php echo $message; ?>
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     <?php endif; ?>
                     
                     <?php if ($error): ?>
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <div class="alert alert-danger alert-dismissible fade show rounded-3" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
                             <?php echo htmlspecialchars($error); ?>
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     <?php endif; ?>
                     
                     <form method="POST" action="">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="first_name" class="form-label">First Name *</label>
-                                <input type="text" class="form-control" id="first_name" name="first_name" 
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-lg" id="first_name" name="first_name" 
                                        value="<?php echo htmlspecialchars($user['first_name']); ?>" required>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="last_name" class="form-label">Last Name *</label>
-                                <input type="text" class="form-control" id="last_name" name="last_name" 
+                            <div class="col-12 col-md-6">
+                                <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-lg" id="last_name" name="last_name" 
                                        value="<?php echo htmlspecialchars($user['last_name']); ?>" required>
                             </div>
                         </div>
                         
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                        <div class="row g-3 mt-1">
+                            <div class="col-12 col-md-6">
                                 <label for="email" class="form-label">Email Address</label>
                                 <div class="input-group">
-                                    <input type="email" class="form-control" id="email" 
+                                    <input type="email" class="form-control form-control-lg bg-light" id="email" 
                                            value="<?php echo htmlspecialchars($user['email']); ?>" readonly>
                                     <?php if (!$user['is_email_verified']): ?>
                                         <a href="?verify_email=send" class="btn btn-outline-warning" 
                                            onclick="return confirm('Send verification email to <?php echo htmlspecialchars($user['email']); ?>?')">
-                                             Verify
+                                            <i class="bi bi-envelope-paper me-1"></i> Verify
                                         </a>
                                     <?php else: ?>
                                         <span class="btn btn-outline-success disabled">
@@ -203,7 +269,7 @@ include '../../includes/header.php';
                                         </span>
                                     <?php endif; ?>
                                 </div>
-                                <div class="form-text">
+                                <div class="form-text mt-2">
                                     <?php if (!$user['is_email_verified']): ?>
                                         <i class="bi bi-info-circle text-warning me-1"></i>
                                         Email not verified. Click Verify to receive verification link.
@@ -213,104 +279,116 @@ include '../../includes/header.php';
                                     <?php endif; ?>
                                 </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="phone" class="form-label">Phone Number *</label>
-                                <input type="tel" class="form-control" id="phone" name="phone" 
+                            <div class="col-12 col-md-6">
+                                <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                                <input type="tel" class="form-control form-control-lg" id="phone" name="phone" 
                                        value="<?php echo htmlspecialchars($user['phone']); ?>" required>
+                                <div class="form-text">Include area code (e.g., 0803 123 4567)</div>
                             </div>
                         </div>
                         
                         <hr class="my-4">
                         
-                        <h5 class="mb-3">Change Password</h5>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                        <h5 class="mb-3 fw-semibold"><i class="bi bi-shield-lock me-2"></i> Change Password</h5>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
                                 <label for="current_password" class="form-label">Current Password</label>
                                 <input type="password" class="form-control" id="current_password" name="current_password">
                                 <div class="form-text">Leave blank if not changing password</div>
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-12 col-md-6">
                                 <label for="new_password" class="form-label">New Password</label>
                                 <input type="password" class="form-control" id="new_password" name="new_password">
                                 <div class="form-text">Minimum 8 characters</div>
                             </div>
                         </div>
                         
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="../dashboard.php" class="btn btn-outline-secondary me-2">Cancel</a>
-                            <button type="submit" class="btn btn-success">Update Profile</button>
+                        <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
+                            <a href="../dashboard.php" class="btn btn-outline-secondary rounded-pill px-4 py-2 order-2 order-sm-1">
+                                <i class="bi bi-arrow-left me-1"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success rounded-pill px-5 py-2 order-1 order-sm-2">
+                                <i class="bi bi-save me-1"></i> Update Profile
+                            </button>
                         </div>
                     </form>
                 </div>
             </div>
             
-            <!-- Account Info -->
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Account Information</h5>
+            <!-- Account Information Card (responsive two-column layout) -->
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden profile-card">
+                <div class="card-header bg-white border-bottom-0 pt-4 px-4">
+                    <h5 class="mb-0 fw-semibold"><i class="bi bi-info-circle-fill me-2 text-success"></i> Account Information</h5>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <table class="table table-sm">
-                                <tr>
-                                    <th>Account Type:</th>
-                                    <td>Buyer</td>
-                                </tr>
-                                <tr>
-                                    <th>Member Since:</th>
-                                    <td><?php echo formatDate($user['created_at']); ?></td>
-                                </tr>
-                                <tr>
-                                    <th>Last Login:</th>
-                                    <td><?php echo $user['last_login'] ? formatDate($user['last_login']) : 'Never'; ?></td>
-                                </tr>
-                            </table>
+                <div class="card-body p-3 p-md-4">
+                    <div class="row g-4">
+                        <div class="col-12 col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tbody>
+                                        <tr>
+                                            <th class="ps-0 pt-0" style="width: 40%;">Account Type:</th>
+                                            <td class="pt-0"><span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2">Buyer</span></td>
+                                        </tr>
+                                        <tr>
+                                            <th class="ps-0">Member Since:</th>
+                                            <td><?php echo formatDate($user['created_at']); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th class="ps-0">Last Login:</th>
+                                            <td><?php echo $user['last_login'] ? formatDate($user['last_login']) : 'Never'; ?></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <table class="table table-sm">
-                                <tr>
-                                    <th>Email Verified:</th>
-                                    <td>
-                                        <?php if ($user['is_email_verified']): ?>
-                                            <span class="badge bg-success">Verified</span>
-                                            <i class="bi bi-check-circle-fill text-success ms-1" title="Verified"></i>
-                                        <?php else: ?>
-                                            <span class="badge bg-warning">Not Verified</span>
-                                            <a href="?verify_email=send" class="btn btn-sm btn-outline-success ms-2" 
-                                               onclick="return confirm('Send verification email to <?php echo htmlspecialchars($user['email']); ?>?')">
-                                                 Verify Now
-                                            </a>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Account Status:</th>
-                                    <td>
-                                        <?php if ($user['is_active']): ?>
-                                            <span class="badge bg-success">Active</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-danger">Suspended</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                            </table>
+                        <div class="col-12 col-md-6">
+                            <div class="bg-light rounded-3 p-3 h-100">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tbody>
+                                        <tr>
+                                            <th class="ps-0 pt-0" style="width: 40%;">Email Verified:</th>
+                                            <td class="pt-0">
+                                                <?php if ($user['is_email_verified']): ?>
+                                                    <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i> Verified</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-warning text-dark rounded-pill px-3 py-2 me-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Not Verified</span>
+                                                    <a href="?verify_email=send" class="btn btn-sm btn-outline-success mt-2 mt-sm-0" 
+                                                       onclick="return confirm('Send verification email to <?php echo htmlspecialchars($user['email']); ?>?')">
+                                                        <i class="bi bi-envelope-paper me-1"></i> Verify Now
+                                                    </a>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th class="ps-0">Account Status:</th>
+                                            <td>
+                                                <?php if ($user['is_active']): ?>
+                                                    <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-shield-check me-1"></i> Active</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-danger rounded-pill px-3 py-2"><i class="bi bi-shield-slash me-1"></i> Suspended</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            
         </div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // Auto-dismiss alerts after 5 seconds
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
         const alerts = document.querySelectorAll('.alert');
         alerts.forEach(function(alert) {
-            const bsAlert = new bootstrap.Alert(alert);
+            const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
             bsAlert.close();
         });
     }, 5000);

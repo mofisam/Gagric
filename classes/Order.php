@@ -77,7 +77,7 @@ class Order {
                 'shipping_phone' => $shippingInfo['shipping_phone'],
                 'state_id' => $shippingInfo['state_id'],
                 'lga_id' => $shippingInfo['lga_id'],
-                'city_id' => $shippingInfo['city_id'],
+                'city' => $shippingInfo['city'],
                 'address_line' => $shippingInfo['address_line'],
                 'landmark' => $shippingInfo['landmark'] ?? null,
                 'shipping_instructions' => $shippingInfo['shipping_instructions'] ?? null

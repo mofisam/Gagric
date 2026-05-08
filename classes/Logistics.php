@@ -27,7 +27,7 @@ class Logistics {
             'order_id' => $orderId,
             'recipient' => $order['shipping_name'],
             'address' => $order['address_line'],
-            'city' => $order['city_id'],
+            'city' => $order['city'],
             'state' => $order['state_id'],
             'phone' => $order['shipping_phone']
         ];

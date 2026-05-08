@@ -59,11 +59,10 @@ $order_items = $db->fetchAll("
 
 // Get shipping details
 $shipping = $db->fetchOne("
-    SELECT os.*, s.name as state_name, l.name as lga_name, c.name as city_name 
+    SELECT os.*, s.name as state_name, l.name as lga_name, os.city as city_name
     FROM order_shipping_details os 
     JOIN states s ON os.state_id = s.id 
     JOIN lgas l ON os.lga_id = l.id 
-    JOIN cities c ON os.city_id = c.id 
     WHERE os.order_id = ?
 ", [$order_id]);
 

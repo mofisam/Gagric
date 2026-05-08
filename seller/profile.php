@@ -22,12 +22,11 @@ $user = $db->fetchOne("
 $seller_profile = $db->fetchOne("
     SELECT sp.*, 
            ua.address_line, ua.landmark, ua.is_default,
-           s.name as state_name, l.name as lga_name, c.name as city_name
+           s.name as state_name, l.name as lga_name, ua.city as city_name
     FROM seller_profiles sp
     LEFT JOIN user_addresses ua ON sp.business_address_id = ua.id
     LEFT JOIN states s ON ua.state_id = s.id
     LEFT JOIN lgas l ON ua.lga_id = l.id
-    LEFT JOIN cities c ON ua.city_id = c.id
     WHERE sp.user_id = ?
 ", [$seller_id]);
 

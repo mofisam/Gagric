@@ -15,12 +15,11 @@ $user = $db->fetchOne("SELECT email, first_name, last_name FROM users WHERE id =
 
 // Get user addresses
 $addresses = $db->fetchAll("
-    SELECT ua.*, s.name as state_name, l.name as lga_name, c.name as city_name 
-    FROM user_addresses ua 
-    JOIN states s ON ua.state_id = s.id 
-    JOIN lgas l ON ua.lga_id = l.id 
-    JOIN cities c ON ua.city_id = c.id 
-    WHERE ua.user_id = ? 
+    SELECT ua.*, s.name as state_name, l.name as lga_name
+    FROM user_addresses ua
+    JOIN states s ON ua.state_id = s.id
+    JOIN lgas l ON ua.lga_id = l.id
+    WHERE ua.user_id = ?
     ORDER BY ua.is_default DESC
 ", [$user_id]);
 
@@ -94,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'shipping_phone' => $selected_address['phone'],
                     'state_id' => $selected_address['state_id'],
                     'lga_id' => $selected_address['lga_id'],
-                    'city_id' => $selected_address['city_id'],
+                    'city' => $selected_address['city'],
                     'address_line' => $selected_address['address_line'],
                     'landmark' => $selected_address['landmark'] ?? '',
                     'shipping_instructions' => $notes
@@ -167,7 +166,7 @@ include '../../includes/header.php';
                                                         <h6 class="mb-1"><?php echo htmlspecialchars($address['address_label'] ?? 'Address'); ?></h6>
                                                         <p class="text-muted mb-1">
                                                             <?php echo htmlspecialchars($address['address_line']); ?><br>
-                                                            <?php echo htmlspecialchars($address['city_name'] . ', ' . $address['lga_name'] . ', ' . $address['state_name']); ?>
+                                                            <?php echo htmlspecialchars($address['city'] . ', ' . $address['lga_name'] . ', ' . $address['state_name']); ?>
                                                         </p>
                                                         <p class="mb-1"><strong>Contact:</strong> <?php echo htmlspecialchars($address['contact_person'] . ' - ' . $address['phone']); ?></p>
                                                         <?php if ($address['is_default']): ?>

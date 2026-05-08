@@ -97,7 +97,7 @@ function validateRegistration($data) {
 function validateAddress($data) {
     $errors = [];
     
-    $required_fields = ['state_id', 'lga_id', 'city_id', 'address_line'];
+    $required_fields = ['state_id', 'lga_id', 'city', 'address_line'];
     foreach ($required_fields as $field) {
         if (empty($data[$field])) {
             $errors[] = ucfirst(str_replace('_', ' ', $field)) . ' is required';

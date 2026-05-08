@@ -42,7 +42,7 @@ $orders_to_ship = $db->fetchAll("
         os.shipping_instructions,
         s.name as state_name,
         l.name as lga_name,
-        c.name as city_name
+        os.city as city_name
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.id
     JOIN products p ON oi.product_id = p.id
@@ -50,7 +50,6 @@ $orders_to_ship = $db->fetchAll("
     LEFT JOIN order_shipping_details os ON o.id = os.order_id
     LEFT JOIN states s ON os.state_id = s.id
     LEFT JOIN lgas l ON os.lga_id = l.id
-    LEFT JOIN cities c ON os.city_id = c.id
     WHERE oi.seller_id = ? AND oi.status = 'confirmed'
     ORDER BY o.created_at ASC
 ", [$seller_id]);
