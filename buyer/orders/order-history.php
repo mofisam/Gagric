@@ -149,18 +149,18 @@ include '../../includes/header.php';
                                     <td class="pe-4 text-end align-middle">
                                         <div class="btn-group" role="group">
                                             <a href="order-details.php?order_number=<?php echo $order['order_number']; ?>" 
-                                               class="btn btn-sm btn-outline-success">
+                                               class="btn btn-sm btn-outline-success ps-2 pe-2">
                                                 <i class="bi bi-eye me-1"></i> View
                                             </a>
-                                            <?php if ($order['payment_status'] !== 'paid'): ?>
-                                                <a href="../cart/payment.php?order_number=<?php echo urlencode($order['order_number']); ?>" class="btn btn-success btn-sm">
+                                            <?php if ($order['payment_status'] !== 'paid' && $order['status'] !== 'cancelled'): ?>
+                                                <a href="../cart/payment.php?order_number=<?php echo urlencode($order['order_number']); ?>" class="btn btn-outline-success btn-sm ps-2 pe-2">
                                                     <i class="bi bi-credit-card me-1"></i>
                                                     Pay Now
                                                  </a>
 
-                                                <?php endif; ?>
+                                            <?php endif; ?>
                                             <?php if ($order['status'] === 'pending'): ?>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                <button type="button" class="btn btn-sm btn-outline-danger ps-2 pe-2" 
                                                         onclick="cancelOrder(<?php echo $order['id']; ?>)">
                                                     <i class="bi bi-x-circle me-1"></i> Cancel
                                                 </button>

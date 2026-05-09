@@ -90,12 +90,12 @@ include '../../includes/header.php';
             </a>
 
             <?php if ($order_data['payment_status'] !== 'paid'): ?>
-    <a href="../cart/payment.php?order_number=<?php echo urlencode($order_data['order_number']); ?>" 
-       class="btn btn-success btn-sm">
-        <i class="bi bi-credit-card me-1"></i>
-        Pay Now
-    </a>
-<?php endif; ?>
+                <a href="../cart/payment.php?order_number=<?php echo urlencode($order_data['order_number']); ?>" 
+                class="btn btn-success btn-sm">
+                    <i class="bi bi-credit-card me-1"></i>
+                    Pay Now
+                </a>
+            <?php endif; ?>
 
             <?php if ($order_data['status'] === 'pending'): ?>
                 <button class="btn btn-outline-danger" onclick="cancelOrder(<?php echo $order_id; ?>)">

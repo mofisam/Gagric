@@ -245,7 +245,7 @@ $page_title = "My Addresses";
                 <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
                     <h5 class="mb-0 fw-bold"><i class="bi bi-bookmark-check me-2 text-success"></i> Saved Addresses</h5>
                 </div>
-                <div class="card-body p-3 p-md-4">
+                <div class="card-body p-3 p-md-0">
                     <?php if (empty($addresses)): ?>
                         <div class="text-center py-5">
                             <i class="bi bi-geo-alt-slash text-muted" style="font-size: 4rem;"></i>
@@ -257,7 +257,7 @@ $page_title = "My Addresses";
                             <?php foreach ($addresses as $address): ?>
                                 <div class="col-12 col-md-6 col-xl-6">
                                     <div class="card address-card h-100 border rounded-4 shadow-sm <?php echo $address['is_default'] ? 'border-success border-2 shadow' : ''; ?>">
-                                        <div class="card-body p-3 p-md-4">
+                                        <div class="card-body p-3 p-md-0">
                                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3 address-header">
                                                 <div>
                                                     <h6 class="fw-bold mb-1"><?php echo htmlspecialchars($address['address_label']); ?></h6>
