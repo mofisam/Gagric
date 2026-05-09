@@ -66,10 +66,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $address_data = getAddressFormData($db);
             $existingDefault = $db->fetchOne("SELECT id FROM user_addresses WHERE user_id = ? AND is_default = TRUE", [$user_id]);
+
             if (!$existingDefault) $address_data['is_default'] = 1;
             if ($address_data['is_default']) $db->query("UPDATE user_addresses SET is_default = FALSE WHERE user_id = ?", [$user_id]);
+            
             $address_data['user_id'] = $user_id;
             $inserted = $db->insert('user_addresses', $address_data);
+
             if (!$inserted) throw new Exception('Could not add address. Please try again.');
             $_SESSION['success'] = 'Address added successfully';
         } catch (Exception $e) { $_SESSION['error'] = $e->getMessage(); }

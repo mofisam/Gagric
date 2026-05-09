@@ -29,18 +29,18 @@ include 'includes/header.php';
                     <a href="dashboard.php" class="btn btn-success btn-lg px-5">
                         <i class="bi bi-speedometer2 me-2"></i> Go to Dashboard
                     </a>
-                    <a href="auth/logout.php" class="btn btn-outline-danger btn-lg px-5">
+                    <a href="<?php echo BASE_URL; ?>/auth/logout.php" class="btn btn-outline-danger btn-lg px-5">
                         <i class="bi bi-box-arrow-right me-2"></i> Logout
                     </a>
                 <?php else: ?>
-                    <a href="auth/login.php" class="btn btn-success btn-lg px-5">
+                    <a href="<?php echo BASE_URL; ?>/auth/login.php" class="btn btn-success btn-lg px-5">
                         <i class="bi bi-box-arrow-in-right me-2"></i> Login
                     </a>
-                    <a href="auth/register.php" class="btn btn-outline-success btn-lg px-5">
+                    <a href="<?php echo BASE_URL; ?>/auth/register.php" class="btn btn-outline-success btn-lg px-5">
                         <i class="bi bi-person-plus me-2"></i> Register
                     </a>
                 <?php endif; ?>
-                <a href="index.php" class="btn btn-outline-secondary btn-lg px-5">
+                <a href="<?php echo BASE_URL; ?>/index.php" class="btn btn-outline-secondary btn-lg px-5">
                     <i class="bi bi-house-door me-2"></i> Homepage
                 </a>
             </div>

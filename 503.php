@@ -40,10 +40,10 @@ include 'includes/header.php';
                                 </h5>
                                 <p class="mb-0">Follow us for updates:</p>
                                 <div class="mt-2">
-                                    <a href="#" class="btn btn-sm btn-outline-primary me-2">
-                                        <i class="bi bi-twitter"></i>
+                                    <a href="https://www.linkedin.com/company/greenagric" class="btn btn-sm btn-outline-primary me-2">
+                                        <i class="bi bi-linkedin"></i>
                                     </a>
-                                    <a href="#" class="btn btn-sm btn-outline-primary">
+                                    <a href="https://www.facebook.com/officialgreenagric" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-facebook"></i>
                                     </a>
                                 </div>

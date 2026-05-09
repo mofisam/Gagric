@@ -152,6 +152,13 @@ include '../../includes/header.php';
                                                class="btn btn-sm btn-outline-success">
                                                 <i class="bi bi-eye me-1"></i> View
                                             </a>
+                                            <?php if ($order['payment_status'] !== 'paid'): ?>
+                                                <a href="../cart/payment.php?order_number=<?php echo urlencode($order['order_number']); ?>" class="btn btn-success btn-sm">
+                                                    <i class="bi bi-credit-card me-1"></i>
+                                                    Pay Now
+                                                 </a>
+
+                                                <?php endif; ?>
                                             <?php if ($order['status'] === 'pending'): ?>
                                                 <button type="button" class="btn btn-sm btn-outline-danger" 
                                                         onclick="cancelOrder(<?php echo $order['id']; ?>)">

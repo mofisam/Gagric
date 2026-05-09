@@ -38,7 +38,7 @@ include 'includes/header.php';
                 <button onclick="window.location.reload()" class="btn btn-success btn-lg px-5" id="retryBtn" disabled>
                     <i class="bi bi-arrow-clockwise me-2"></i> Try Again
                 </button>
-                <a href="index.php" class="btn btn-outline-success btn-lg px-5">
+                <a href="<?php echo BASE_URL; ?>/index.php" class="btn btn-outline-success btn-lg px-5">
                     <i class="bi bi-house-door me-2"></i> Homepage
                 </a>
             </div>

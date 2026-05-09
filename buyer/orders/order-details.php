@@ -88,6 +88,14 @@ include '../../includes/header.php';
             <a href="order-history.php" class="btn btn-outline-success">
                 <i class="bi bi-arrow-left me-1"></i> Back to Orders
             </a>
+
+            <?php if ($order_data['payment_status'] !== 'paid'): ?>
+                <a href="../cart/payment.php?order_number=<?php echo urlencode($order['order_number']); ?>" class="btn btn-success btn-sm">
+                    <i class="bi bi-credit-card me-1"></i>
+                    Pay Now
+                </a>
+            <?php endif; ?>
+
             <?php if ($order_data['status'] === 'pending'): ?>
                 <button class="btn btn-outline-danger" onclick="cancelOrder(<?php echo $order_id; ?>)">
                     Cancel Order

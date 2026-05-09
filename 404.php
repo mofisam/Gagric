@@ -20,7 +20,7 @@ include 'includes/header.php';
             </p>
             
             <div class="d-flex flex-column flex-md-row gap-3 justify-content-center">
-                <a href="index.php" class="btn btn-success btn-lg px-5">
+                <a href="<?php echo BASE_URL; ?>/index.php" class="btn btn-success btn-lg px-5">
                     <i class="bi bi-house-door me-2"></i> Go to Homepage
                 </a>
                 <a href="javascript:history.back()" class="btn btn-outline-success btn-lg px-5">
@@ -32,7 +32,7 @@ include 'includes/header.php';
                 <h5 class="mb-3">Looking for something specific?</h5>
                 <div class="row g-3 justify-content-center">
                     <div class="col-md-4">
-                        <a href="buyer/products/browse.php" class="card border-0 shadow-sm text-decoration-none h-100">
+                        <a href="<?php echo BASE_URL; ?>/buyer/products/browse.php" class="card border-0 shadow-sm text-decoration-none h-100">
                             <div class="card-body text-center p-3">
                                 <i class="bi bi-basket text-success fs-4 mb-2"></i>
                                 <h6 class="mb-0">Browse Products</h6>
@@ -40,7 +40,7 @@ include 'includes/header.php';
                         </a>
                     </div>
                     <div class="col-md-4">
-                        <a href="auth/login.php" class="card border-0 shadow-sm text-decoration-none h-100">
+                        <a href="<?php echo BASE_URL; ?>/auth/login.php" class="card border-0 shadow-sm text-decoration-none h-100">
                             <div class="card-body text-center p-3">
                                 <i class="bi bi-person text-success fs-4 mb-2"></i>
                                 <h6 class="mb-0">Login</h6>
@@ -48,7 +48,7 @@ include 'includes/header.php';
                         </a>
                     </div>
                     <div class="col-md-4">
-                        <a href="auth/register.php" class="card border-0 shadow-sm text-decoration-none h-100">
+                        <a href="<?php echo BASE_URL; ?>/auth/register.php" class="card border-0 shadow-sm text-decoration-none h-100">
                             <div class="card-body text-center p-3">
                                 <i class="bi bi-person-plus text-success fs-4 mb-2"></i>
                                 <h6 class="mb-0">Register</h6>

@@ -25,7 +25,7 @@ include 'includes/header.php';
             </p>
             
             <div class="d-flex flex-column flex-md-row gap-3 justify-content-center mb-5">
-                <a href="index.php" class="btn btn-success btn-lg px-5">
+                <a href="<?php echo BASE_URL; ?>/index.php" class="btn btn-success btn-lg px-5">
                     <i class="bi bi-house-door me-2"></i> Go to Homepage
                 </a>
                 <button onclick="window.location.reload()" class="btn btn-outline-success btn-lg px-5">
