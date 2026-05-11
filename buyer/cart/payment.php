@@ -590,5 +590,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 </script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
 
+    if (typeof cartManager !== 'undefined') {
+        cartManager.clearCart();
+    } else {
+        localStorage.removeItem('greenagric_cart');
+    }
+
+    sessionStorage.removeItem('cart_synced');
+
+    const cartCount = document.getElementById('cart-count');
+
+    if (cartCount) {
+        cartCount.textContent = '0';
+    }
+});
+</script>
 <?php include '../../includes/footer.php'; ?>

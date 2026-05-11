@@ -292,18 +292,6 @@ if (isset($_GET['download'])) {
             </div>
             
             <div class="row mb-4">
-                <!-- From/Platform Info -->
-                <div class="col-md-6">
-                    <h5 class="section-title">From</h5>
-                    <div class="payment-details">
-                        <strong><?php echo $platform_info['name']; ?></strong><br>
-                        <?php echo $platform_info['address']; ?><br>
-                        <?php echo $platform_info['city']; ?><br>
-                        <strong>Phone:</strong> <?php echo $platform_info['phone']; ?><br>
-                        <strong>Email:</strong> <?php echo $platform_info['email']; ?><br>
-                        <strong>Website:</strong> <?php echo $platform_info['website']; ?>
-                    </div>
-                </div>
                 
                 <!-- To/Buyer Info -->
                 <div class="col-md-6">
@@ -319,12 +307,10 @@ if (isset($_GET['download'])) {
                         <strong>Customer ID:</strong> <?php echo htmlspecialchars($buyer['uuid']); ?>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Shipping Information -->
-            <?php if ($shipping): ?>
-                <div class="row mb-4">
-                    <div class="col-12">
+                
+                <!-- Shipping Information -->
+                <?php if ($shipping): ?>
+                    <div class="col-6">
                         <h5 class="section-title">Shipping Address</h5>
                         <div class="payment-details">
                             <strong><?php echo htmlspecialchars($shipping['shipping_name']); ?></strong><br>
@@ -336,8 +322,8 @@ if (isset($_GET['download'])) {
                             <?php endif; ?>
                         </div>
                     </div>
-                </div>
-            <?php endif; ?>
+                <?php endif; ?>
+            </div>
             
             <!-- Order Items Table -->
             <div class="mb-4">
@@ -486,35 +472,9 @@ if (isset($_GET['download'])) {
                             <li>This invoice is valid for 30 days from the invoice date.</li>
                             <li>Goods sold are not returnable unless defective.</li>
                             <li>Agricultural products are subject to seasonal availability.</li>
-                            <li>All disputes are subject to Lagos jurisdiction.</li>
                             <li>Payment confirms acceptance of our terms.</li>
                             <li>For quality complaints, contact within 48 hours of delivery.</li>
                         </ol>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Signatures -->
-            <div class="row mt-4 signature-area">
-                <div class="col-md-4 text-center">
-                    <div class="border-top pt-3">
-                        <strong>Customer Signature</strong><br>
-                        <div class="mt-2" style="height: 60px;"></div>
-                        <small>Date: _________________</small>
-                    </div>
-                </div>
-                <div class="col-md-4 text-center">
-                    <div class="border-top pt-3">
-                        <strong>Seller Representative</strong><br>
-                        <div class="mt-2" style="height: 60px;"></div>
-                        <small>Date: _________________</small>
-                    </div>
-                </div>
-                <div class="col-md-4 text-center">
-                    <div class="border-top pt-3">
-                        <strong>Green Agric Marketplace</strong><br>
-                        <div class="mt-2" style="height: 60px;"></div>
-                        <small>Authorized Signature</small>
                     </div>
                 </div>
             </div>
