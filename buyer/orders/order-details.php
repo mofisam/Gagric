@@ -16,11 +16,25 @@ $order_id = $_GET['id'] ?? 0;
 
 // If we have order_number, get the order using it
 if (!empty($order_number)) {
+
     $order_data = $order->getOrder($order_number, $user_id);
-    if ($order_data && isset($order_data['id'])) {
-        $order_id = $order_data['id']; // Get the ID from the order data
+
+    // Get the REAL order ID directly from orders table
+    if ($order_data && isset($order_data['order_number'])) {
+
+        $real_order = $db->fetchOne("
+            SELECT id 
+            FROM orders 
+            WHERE order_number = ?
+            AND buyer_id = ?
+        ", [$order_data['order_number'], $user_id]);
+
+        if ($real_order) {
+            $order_id = $real_order['id'];
+        }
     }
-} 
+}
+
 // If we have order_id, get the order using it
 else if ($order_id) {
     // First get order details by ID
@@ -44,8 +58,18 @@ if (!$order_data) {
 }
 
 // Ensure we have the order ID for queries
-if (!$order_id && isset($order_data['id'])) {
-    $order_id = $order_data['id'];
+if (!$order_id && isset($order_data['order_number'])) {
+
+    $real_order = $db->fetchOne("
+        SELECT id 
+        FROM orders 
+        WHERE order_number = ?
+        AND buyer_id = ?
+    ", [$order_data['order_number'], $user_id]);
+
+    if ($real_order) {
+        $order_id = $real_order['id'];
+    }
 }
 
 // Get order items
@@ -388,4 +412,4 @@ function cancelOrder(orderId) {
 }
 </script>
 
-<?php include '../../includes/footer.php'; ?>
+<?php include '../../includes/footer.php'; ?> "
