@@ -20,28 +20,61 @@ if ($event['event'] === 'charge.success') {
     $data = $event['data'];
     $reference = $data['reference'];
     
-    // Update payment and order status
+    // Update payment, linked orders, and item statuses.
     $stmt = $db->conn->prepare("
         UPDATE payments p 
-        JOIN orders o ON p.order_id = o.id 
+        JOIN orders o ON o.payment_id = p.id
         SET p.status = 'success', p.paid_at = NOW(), 
-            o.payment_status = 'paid', o.paid_at = NOW() 
+            o.payment_status = 'paid',
+            o.status = CASE WHEN o.status = 'pending' THEN 'confirmed' ELSE o.status END,
+            o.paid_at = NOW()
         WHERE p.paystack_reference = ?
     ");
     $stmt->bind_param("s", $reference);
     $stmt->execute();
     
-    // Update product stock
     $stmt = $db->conn->prepare("
-        UPDATE products p 
-        JOIN order_items oi ON p.id = oi.product_id 
-        JOIN orders o ON oi.order_id = o.id 
-        JOIN payments pm ON o.id = pm.order_id 
-        SET p.stock_quantity = p.stock_quantity - oi.quantity 
+        UPDATE order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN payments pm ON o.payment_id = pm.id
+        SET oi.status = 'confirmed'
         WHERE pm.paystack_reference = ?
+        AND oi.status = 'pending'
     ");
     $stmt->bind_param("s", $reference);
     $stmt->execute();
+}
+
+if ($event['event'] === 'transfer.success') {
+    $data = $event['data'];
+    $transfer_code = $data['transfer_code'] ?? '';
+    $transfer_reference = $data['reference'] ?? '';
+
+    foreach (array_filter([$transfer_code, $transfer_reference]) as $reference) {
+        $stmt = $db->conn->prepare("
+            UPDATE seller_payouts
+            SET status = 'paid', paid_at = NOW()
+            WHERE paystack_transfer_reference = ?
+        ");
+        $stmt->bind_param("s", $reference);
+        $stmt->execute();
+    }
+}
+
+if (in_array($event['event'], ['transfer.failed', 'transfer.reversed'], true)) {
+    $data = $event['data'];
+    $transfer_code = $data['transfer_code'] ?? '';
+    $transfer_reference = $data['reference'] ?? '';
+
+    foreach (array_filter([$transfer_code, $transfer_reference]) as $reference) {
+        $stmt = $db->conn->prepare("
+            UPDATE seller_payouts
+            SET status = 'failed'
+            WHERE paystack_transfer_reference = ?
+        ");
+        $stmt->bind_param("s", $reference);
+        $stmt->execute();
+    }
 }
 
 http_response_code(200);

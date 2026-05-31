@@ -41,21 +41,26 @@ switch ($event) {
                 'paid_at' => date('Y-m-d H:i:s')
             ], 'paystack_reference = ?', [$reference]);
             
-            // Get order ID from payment
-            $payment = $db->fetchOne(
-                "SELECT order_id FROM payments WHERE paystack_reference = ?",
+            // Get linked orders from the shared payment record
+            $orders = $db->fetchAll(
+                "SELECT o.id
+                 FROM orders o
+                 JOIN payments p ON o.payment_id = p.id
+                 WHERE p.paystack_reference = ?",
                 [$reference]
             );
             
-            if ($payment) {
-                // Update order
+            foreach ($orders as $order) {
                 $db->update('orders', [
                     'payment_status' => 'paid',
                     'status' => 'confirmed',
                     'paid_at' => date('Y-m-d H:i:s')
-                ], 'id = ?', [$payment['order_id']]);
+                ], 'id = ?', [$order['id']]);
+
+                $db->update('order_items', [
+                    'status' => 'confirmed'
+                ], 'order_id = ? AND status = ?', [$order['id'], 'pending']);
                 
-                // Log success
                 error_log("Webhook: Payment {$reference} processed successfully");
             }
         }
@@ -63,14 +68,32 @@ switch ($event) {
         
     case 'transfer.success':
         // Handle successful seller payout
-        $transfer_reference = $data['transfer_code'] ?? '';
+        $transfer_code = $data['transfer_code'] ?? '';
+        $transfer_reference = $data['reference'] ?? '';
         
-        $db->update('seller_payouts', [
-            'status' => 'paid',
-            'paid_at' => date('Y-m-d H:i:s')
-        ], 'paystack_transfer_reference = ?', [$transfer_reference]);
+        foreach (array_filter([$transfer_code, $transfer_reference]) as $reference) {
+            $db->update('seller_payouts', [
+                'status' => 'paid',
+                'paid_at' => date('Y-m-d H:i:s')
+            ], 'paystack_transfer_reference = ?', [$reference]);
+        }
         
         error_log("Webhook: Transfer {$transfer_reference} completed");
+        break;
+
+    case 'transfer.failed':
+    case 'transfer.reversed':
+        // Handle failed or reversed seller payout
+        $transfer_code = $data['transfer_code'] ?? '';
+        $transfer_reference = $data['reference'] ?? '';
+
+        foreach (array_filter([$transfer_code, $transfer_reference]) as $reference) {
+            $db->update('seller_payouts', [
+                'status' => 'failed'
+            ], 'paystack_transfer_reference = ?', [$reference]);
+        }
+
+        error_log("Webhook: Transfer {$transfer_reference} failed or reversed");
         break;
         
     default:

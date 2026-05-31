@@ -230,6 +230,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $db->conn->commit();
                 
+                // After commit(), before the header redirect:
+                echo "<script>localStorage.removeItem('greenagric_cart'); if(typeof cartManager!=='undefined') cartManager.clearCart();</script>";
+
                 $_SESSION['pending_orders'] = $all_order_numbers;
                 $_SESSION['order_count'] = count($created_orders);
                 $_SESSION['payment_total'] = $global_total;
@@ -369,13 +372,6 @@ include '../../includes/header.php';
 <div class="container py-4">
     <div class="row mb-4">
         <div class="col-12">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="../products/browse.php" class="text-success">Shop</a></li>
-                    <li class="breadcrumb-item"><a href="view-cart.php" class="text-success">Cart</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Checkout</li>
-                </ol>
-            </nav>
             <h2 class="mb-0">Complete Your Order</h2>
             <p class="text-muted">Review your items and complete the checkout process</p>
         </div>
@@ -632,7 +628,7 @@ include '../../includes/header.php';
                                 <input class="form-check-input" type="checkbox" id="terms" required>
                                 <label class="form-check-label small" for="terms">
                                     I confirm that all information is correct and agree to the 
-                                    <a href="#" class="text-success" data-bs-toggle="modal" data-bs-target="#termsModal">Terms & Conditions</a>
+                                    <a href="<?php echo BASE_URL; ?>/terms-and-conditions.php" class="text-success" >Terms & Conditions</a>
                                 </label>
                             </div>
                             
@@ -653,34 +649,6 @@ include '../../includes/header.php';
             </div>
         </div>
     </form>
-</div>
-
-<!-- Terms Modal -->
-<div class="modal fade" id="termsModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">Terms & Conditions</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <h6>1. Order Confirmation</h6>
-                <p>By placing an order, you agree to pay the full amount displayed at checkout.</p>
-                
-                <h6>2. Shipping & Delivery</h6>
-                <p>Each seller handles their own shipping. Delivery times vary by seller location.</p>
-                
-                <h6>3. Returns & Refunds</h6>
-                <p>Returns are handled per seller. Contact the seller directly for returns.</p>
-                
-                <h6>4. Payment Security</h6>
-                <p>All payments are processed securely through Paystack. We don't store your card details.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-success" data-bs-dismiss="modal">I Agree</button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>

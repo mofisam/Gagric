@@ -397,6 +397,10 @@ if (isset($_GET['reference'])) {
                     'paid_at' => date('Y-m-d H:i:s')
                 ], 'id = ?', [$ord['id']]);
 
+                $db->update('order_items', [
+                    'status' => 'confirmed'
+                ], 'order_id = ? AND status = ?', [$ord['id'], 'pending']);
+
                 $verified_orders[] = $ord['order_number'];
             }
 
@@ -507,6 +511,13 @@ include '../../includes/header.php';
 <div class="container py-5">
 
     <?php if ($payment_success): ?>
+        <script>
+            localStorage.removeItem('greenagric_cart');
+            if (typeof cartManager !== 'undefined') cartManager.clearCart();
+            if (typeof updateCartCount === 'function') updateCartCount();
+            const badge = document.getElementById('cart-count');
+            if (badge) badge.textContent = '0';
+        </script>
 
         <div class="card border-success shadow-lg">
             <div class="card-body text-center py-5">
@@ -695,7 +706,7 @@ include '../../includes/header.php';
                             <input class="form-check-input" type="checkbox" id="agreeTerms">
                             <label class="form-check-label" for="agreeTerms">
                                 I confirm that all order information is correct and agree to the 
-                                <a href="#" class="text-success" data-bs-toggle="modal" data-bs-target="#termsModal">Terms & Conditions</a>
+                                <a href="<?php echo BASE_URL; ?>/terms-and-conditions.php" class="text-success" >Terms & Conditions</a>
                             </label>
                         </div>
 
@@ -731,37 +742,6 @@ include '../../includes/header.php';
 
     <?php endif; ?>
 
-</div>
-
-<!-- Terms Modal -->
-<div class="modal fade" id="termsModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">Terms & Conditions</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <h6>1. Multiple Orders</h6>
-                <p>You are making a single payment for multiple orders from different sellers. Each order will be processed independently by its respective seller.</p>
-                
-                <h6>2. Payment Confirmation</h6>
-                <p>Once payment is successful, all orders will be confirmed automatically. You will receive separate order confirmations.</p>
-                
-                <h6>3. Shipping & Delivery</h6>
-                <p>Each seller handles their own shipping. Delivery times may vary by seller location.</p>
-                
-                <h6>4. Returns & Refunds</h6>
-                <p>Returns and refunds are handled per order. Contact the respective seller for returns.</p>
-                
-                <h6>5. Payment Security</h6>
-                <p>All payments are processed securely through Paystack. We don't store your card details.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-success" data-bs-dismiss="modal">I Agree</button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script src="https://js.paystack.co/v2/inline.js"></script>
@@ -828,6 +808,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const popup = new PaystackPop();
             popup.resumeTransaction(result.access_code, {
                 onSuccess: function(transaction) {
+                    localStorage.removeItem('greenagric_cart');
+                    if (typeof cartManager !== 'undefined') cartManager.clearCart();
+
                     const reference = transaction && (transaction.reference || transaction.trxref)
                         ? (transaction.reference || transaction.trxref)
                         : result.reference;

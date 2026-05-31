@@ -154,9 +154,6 @@ $page_css = 'dashboard.css';
                             <i class="bi bi-printer"></i>
                         </button>
                     </div>
-                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#customizeFlowModal">
-                        <i class="bi bi-pencil-square me-1"></i> Customize Flow
-                    </button>
                 </div>
             </div>
 
@@ -201,7 +198,7 @@ $page_css = 'dashboard.css';
                                                 <?php endif; ?>
                                             </div>
                                             <?php if (!$is_completed && !$is_current && $status !== 'cancelled'): ?>
-                                                <button class="btn btn-sm btn-outline-primary mt-2 update-status-btn" 
+                                                <button class="btn btn-sm btn-outline-success mt-2 p-1 update-status-btn" 
                                                         data-status="<?php echo $status; ?>"
                                                         style="font-size: 0.7rem;">
                                                     <i class="bi bi-arrow-right"></i> Move Here
@@ -537,76 +534,6 @@ $page_css = 'dashboard.css';
                 </div>
             </div>
         </main>
-    </div>
-</div>
-
-<!-- Customize Flow Modal -->
-<div class="modal fade" id="customizeFlowModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Customize Order Workflow</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted">Drag and drop to reorder the status flow. This will affect how you update orders.</p>
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>Tip:</strong> You can create a custom workflow for different order types.
-                </div>
-                
-                <div class="workflow-editor" id="workflowEditor">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Available Statuses</h6>
-                            <div class="available-statuses list-group" id="availableStatuses">
-                                <?php foreach ($available_statuses as $key => $info): ?>
-                                    <div class="list-group-item d-flex justify-content-between align-items-center" data-status="<?php echo $key; ?>">
-                                        <div>
-                                            <i class="bi <?php echo $info['icon']; ?> me-2 text-<?php echo $info['color']; ?>"></i>
-                                            <?php echo $info['label']; ?>
-                                        </div>
-                                        <button class="btn btn-sm btn-outline-primary add-to-flow" data-status="<?php echo $key; ?>">
-                                            <i class="bi bi-plus"></i> Add
-                                        </button>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Current Flow <span class="badge bg-primary" id="flowCount"><?php echo count($status_flow); ?></span></h6>
-                            <div class="current-flow list-group" id="currentFlow">
-                                <?php foreach ($status_flow as $index => $status): ?>
-                                    <div class="list-group-item d-flex justify-content-between align-items-center" data-status="<?php echo $status; ?>">
-                                        <div>
-                                            <i class="bi bi-<?php echo $available_statuses[$status]['icon']; ?> me-2 text-<?php echo $available_statuses[$status]['color']; ?>"></i>
-                                            <?php echo $available_statuses[$status]['label']; ?>
-                                        </div>
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-secondary move-up" data-index="<?php echo $index; ?>" <?php echo $index == 0 ? 'disabled' : ''; ?>>
-                                                <i class="bi bi-arrow-up"></i>
-                                            </button>
-                                            <button class="btn btn-outline-secondary move-down" data-index="<?php echo $index; ?>" <?php echo $index == count($status_flow) - 1 ? 'disabled' : ''; ?>>
-                                                <i class="bi bi-arrow-down"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger remove-from-flow" data-status="<?php echo $status; ?>">
-                                                <i class="bi bi-x"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveFlowBtn">
-                    <i class="bi bi-save me-1"></i> Save Workflow
-                </button>
-            </div>
-        </div>
     </div>
 </div>
 

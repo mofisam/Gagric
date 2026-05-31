@@ -42,7 +42,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($user->role === 'admin') {
                 header('Location: ../admin/dashboard.php');
             } elseif ($user->role === 'seller') {
+                // Check seller profile completeness
+                $db = new Database();
+
+                $seller_profile = $db->fetchOne("
+                    SELECT business_name
+                    FROM seller_profiles
+                    WHERE user_id = ?
+                ", [$user->id]);
+
+                if (!$seller_profile || empty($seller_profile['business_name'])) {
+                    header('Location: ../seller/store/profile.php');
+                    exit;
+                }
+
                 header('Location: ../seller/dashboard.php');
+                exit;
             } else {
                 $redirect = $_GET['redirect'] ?? '../index.php';
 

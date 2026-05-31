@@ -460,10 +460,10 @@ $page_css = 'dashboard.css';
                                     <div class="d-flex">
                                         <i class="bi bi-calendar-check text-primary fs-3 me-3"></i>
                                         <div>
-                                            <h6 class="mb-1">Payout Schedule</h6>
+                                            <h6 class="mb-1">Payout Processing</h6>
                                             <p class="small text-muted mb-0">
-                                                Payouts are processed every Monday for the previous week's earnings.
-                                                Processing takes 1-3 business days to reflect in your bank account.
+                                                Payout requests are reviewed by admin and sent through Paystack Transfers.
+                                                Bank settlement timing depends on Paystack and the receiving bank.
                                             </p>
                                         </div>
                                     </div>
@@ -509,7 +509,7 @@ $page_css = 'dashboard.css';
                     
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
-                        Payouts are processed every Monday. You'll receive the funds within 1-3 business days.
+                        This will submit your payout request for admin processing through Paystack.
                     </div>
                     
                     <div class="mb-3">
@@ -589,27 +589,45 @@ function submitPayoutRequest(event) {
     
     const submitBtn = document.getElementById('submitPayoutBtn');
     const spinner = document.getElementById('payoutSpinner');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
     
     submitBtn.disabled = true;
     spinner.classList.remove('d-none');
     
-    // Simulate API call - replace with actual AJAX
-    setTimeout(() => {
-        showToast('Payout request submitted successfully!', 'success');
-        
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('requestPayoutModal'));
-        modal.hide();
-        
-        // Reset button
-        submitBtn.disabled = false;
-        spinner.classList.add('d-none');
-        
-        // Reload after delay
-        setTimeout(() => {
-            location.reload();
-        }, 1500);
-    }, 2000);
+    fetch('request-payout.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            csrf_token: csrfToken
+        })
+    })
+        .then(async (response) => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to submit payout request');
+            }
+            return data;
+        })
+        .then((data) => {
+            showToast(data.message || 'Payout request submitted successfully!', 'success');
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('requestPayoutModal'));
+            modal.hide();
+            
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        })
+        .catch((error) => {
+            showToast(error.message, 'danger');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            spinner.classList.add('d-none');
+        });
 }
 
 function showToast(message, type) {
@@ -694,6 +712,7 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
 </script>
 
 <?php include '../../includes/footer.php'; ?>

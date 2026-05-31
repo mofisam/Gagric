@@ -14,7 +14,8 @@ $seller_profile = $db->fetchOne("
     FROM seller_profiles WHERE user_id = ?
 ", [$seller_id]);
 
-// Get orders ready for shipping (status = 'confirmed')
+// Get paid seller items that are ready for shipment.
+// Pending orders are not shown here until they are confirmed or processing.
 $orders_to_ship = $db->fetchAll("
     SELECT 
         oi.id as order_item_id,
@@ -50,7 +51,10 @@ $orders_to_ship = $db->fetchAll("
     LEFT JOIN order_shipping_details os ON o.id = os.order_id
     LEFT JOIN states s ON os.state_id = s.id
     LEFT JOIN lgas l ON os.lga_id = l.id
-    WHERE oi.seller_id = ? AND oi.status = 'confirmed'
+    WHERE oi.seller_id = ?
+    AND o.payment_status = 'paid'
+    AND o.status IN ('confirmed', 'processing')
+    AND oi.status IN ('confirmed', 'processing')
     ORDER BY o.created_at ASC
 ", [$seller_id]);
 
@@ -134,9 +138,6 @@ $page_css = 'dashboard.css';
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </div>
-                    <a href="bulk-shipping.php" class="btn btn-sm btn-primary">
-                        <i class="bi bi-truck me-1"></i> Bulk Shipping
-                    </a>
                 </div>
             </div>
 
@@ -243,7 +244,7 @@ $page_css = 'dashboard.css';
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <?php if ($order['product_image']): ?>
-                                                        <img src="<?php echo BASE_URL . '/uploads/products/' . $order['product_image']; ?>" 
+                                                        <img src="<?php echo BASE_URL . '/assets/uploads/products/' . $order['product_image']; ?>" 
                                                              alt="<?php echo htmlspecialchars($order['product_name']); ?>"
                                                              class="rounded me-3" 
                                                              style="width: 50px; height: 50px; object-fit: cover;">
@@ -409,6 +410,7 @@ $page_css = 'dashboard.css';
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <div id="shipModalMessage"></div>
                 <form id="shipForm">
                     <input type="hidden" id="order_item_id" name="order_item_id">
                     <input type="hidden" id="order_id" name="order_id">
@@ -464,17 +466,6 @@ $page_css = 'dashboard.css';
                                 <input type="date" class="form-control" id="estimated_delivery" name="estimated_delivery" required>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="shipping_cost" class="form-label fw-bold">Shipping Cost (Optional)</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">₦</span>
-                                    <input type="number" class="form-control" id="shipping_cost" name="shipping_cost" 
-                                           placeholder="0.00" step="0.01" min="0">
-                                </div>
-                            </div>
-                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -491,7 +482,7 @@ $page_css = 'dashboard.css';
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" onclick="submitShipment()">
+                <button type="submit" form="shipForm" id="shipSubmitButton" class="btn btn-success">
                     <i class="bi bi-check-circle me-1"></i> Mark as Shipped
                 </button>
             </div>
@@ -501,6 +492,15 @@ $page_css = 'dashboard.css';
 
 <script>
 var shipModal = document.getElementById('shipModal');
+var shipForm = document.getElementById('shipForm');
+var shipSubmitButton = document.getElementById('shipSubmitButton');
+
+if (shipForm) {
+    shipForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        submitShipment(shipSubmitButton);
+    });
+}
 
 shipModal.addEventListener('show.bs.modal', function (event) {
     var button = event.relatedTarget;
@@ -514,8 +514,8 @@ shipModal.addEventListener('show.bs.modal', function (event) {
     // Set form values
     document.getElementById('order_item_id').value = orderItemId;
     document.getElementById('order_id').value = orderId;
-    document.getElementById('display_order_number').value = orderNumber;
-    document.getElementById('display_customer_name').value = customerName;
+    document.getElementById('display_order_number').textContent = orderNumber;
+    document.getElementById('display_customer_name').textContent = customerName;
     
     // Set minimum date for delivery (tomorrow)
     var tomorrow = new Date();
@@ -527,35 +527,74 @@ shipModal.addEventListener('show.bs.modal', function (event) {
     // Clear previous values
     document.getElementById('tracking_number').value = '';
     document.getElementById('logistics_partner').value = '';
-    document.getElementById('shipping_cost').value = '';
     document.getElementById('shipping_notes').value = '';
+    showShipModalMessage('');
 });
 
-function submitShipment() {
+function showShipModalMessage(message, type = 'danger') {
+    const messageBox = document.getElementById('shipModalMessage');
+    if (!messageBox) return;
+
+    if (!message) {
+        messageBox.innerHTML = '';
+        return;
+    }
+
+    const safeMessage = String(message)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    messageBox.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${safeMessage}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+
+async function submitShipment(submitBtn) {
+    submitBtn = submitBtn || document.getElementById('shipSubmitButton');
+    if (!submitBtn) return;
+
     // Validate form
-    var trackingNumber = document.getElementById('tracking_number').value;
-    var logisticsPartner = document.getElementById('logistics_partner').value;
-    var estimatedDelivery = document.getElementById('estimated_delivery').value;
+    var trackingNumber = document.getElementById('tracking_number').value.trim();
+    var logisticsPartner = document.getElementById('logistics_partner').value.trim();
+    var estimatedDelivery = document.getElementById('estimated_delivery').value.trim();
     
     if (!trackingNumber || !logisticsPartner || !estimatedDelivery) {
-        alert('Please fill in all required fields');
+        showShipModalMessage('Please fill in all required fields', 'warning');
         return;
     }
     
     // Show loading state
-    var submitBtn = event.target;
     var originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
     submitBtn.disabled = true;
     
     const formData = new FormData(document.getElementById('shipForm'));
-    
-    fetch('process-shipping.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
+
+    try {
+        const response = await fetch('process-shipping.php', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        });
+
+        const responseText = await response.text();
+        let data;
+
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            throw new Error(responseText ? responseText.substring(0, 300) : 'Empty response from server');
+        }
+
         if (data.success) {
             // Show success message
             showToast('Order marked as shipped successfully!', 'success');
@@ -568,18 +607,17 @@ function submitShipment() {
             setTimeout(() => {
                 location.reload();
             }, 1500);
-        } else {
-            showToast('Error: ' + (data.error || 'Unknown error'), 'danger');
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
+            return;
         }
-    })
-    .catch(error => {
+
+        throw new Error(data.error || 'Unknown server error');
+    } catch (error) {
         console.error('Error:', error);
-        showToast('Failed to process shipment. Please try again.', 'danger');
+        showShipModalMessage(error.message || 'Failed to process shipment. Please try again.', 'danger');
+        showToast('Failed to process shipment. Please check the message in the form.', 'danger');
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
-    });
+    }
 }
 
 function filterOrders(period) {
@@ -664,37 +702,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Add custom styles
-const style = document.createElement('style');
-style.textContent = `
-    .dashboard-card {
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .dashboard-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
-    }
-    
-    .modal-header.bg-success {
-        background: linear-gradient(135deg, #198754 0%, #146c43 100%);
-    }
-    
-    .btn-group .btn {
-        padding: 0.25rem 0.5rem;
-    }
-    
-    @media (max-width: 768px) {
-        .table-responsive {
-            border: 0;
-        }
-        
-        .table td:nth-child(3) {
-            max-width: 200px;
-        }
-    }
-`;
-document.head.appendChild(style);
 </script>
 
 <?php include '../../includes/footer.php'; ?>

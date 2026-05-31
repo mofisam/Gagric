@@ -307,7 +307,7 @@ $page_css = 'dashboard.css';
                                                     <td>
                                                         <div class="d-flex align-items-center">
                                                             <?php if ($sale['product_image']): ?>
-                                                                <img src="<?php echo BASE_URL . '/uploads/products/' . $sale['product_image']; ?>" 
+                                                                <img src="<?php echo BASE_URL . '/assets/uploads/products/' . $sale['product_image']; ?>" 
                                                                      alt="<?php echo htmlspecialchars($sale['product_name']); ?>"
                                                                      class="rounded me-2" 
                                                                      style="width: 40px; height: 40px; object-fit: cover;">

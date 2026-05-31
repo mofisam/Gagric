@@ -91,7 +91,15 @@ $shipping = $db->fetchOne("
 ", [$order_id]);
 
 // Get payment details
-$payment = $db->fetchOne("SELECT * FROM payments WHERE order_id = ?", [$order_id]);
+$payment = null;
+
+if (!empty($order_data['payment_id'])) {
+    $payment = $db->fetchOne("
+        SELECT * 
+        FROM payments 
+        WHERE id = ?
+    ", [$order_data['payment_id']]);
+}
 ?>
 <?php 
 $page_title = "Order #" . $order_data['order_number'];

@@ -13,8 +13,6 @@ if (isset($_SESSION['user_id'])) {
 }
 
 $error = '';
-$success = '';
-$email_verification_sent = false;
 
 function generateUUID() {
     $data = random_bytes(16);
@@ -32,7 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $confirm_password = $_POST['confirm_password'];
     $role = $_POST['role'] ?? 'buyer';
     
-    // Use validation functions
     $validation_errors = [];
     
     if (empty($first_name) || empty($last_name) || empty($userEmail) || empty($phone) || empty($password)) {
@@ -67,18 +64,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db = new Database();
         $user = new User($db);
         
-        // Check if user already exists
         $existing = $db->fetchOne("SELECT id, is_email_verified FROM users WHERE email = ? OR phone = ?", [$userEmail, $phone]);
         if ($existing) {
             $error = 'User with this email or phone already exists';
         } else {
-            // Generate email verification token
             $verification_token = bin2hex(random_bytes(32));
             $verification_expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
             
             $uuid = generateUUID();
 
-            // Prepare user data with verification token
             $userData = [
                 'uuid' => $uuid,
                 'first_name' => $first_name,
@@ -92,36 +86,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'is_email_verified' => 0
             ];
             
-            // First, create the user
             $user_id = $user->register($userData);
             
             if ($user_id) {
-                // Send verification email
                 try {
                     $mailer = new Mailer();
                     $verificationLink = BASE_URL . "/auth/verify-email.php?token=" . $verification_token . "&email=" . urlencode($userEmail);
-                    
-                    // Get user's full name
                     $userName = $first_name . ' ' . $last_name;
-                    
-                    // Send verification email
                     $email_sent = $mailer->sendEmailVerification($userEmail, $userName, $verificationLink);
-                    
-                    if ($email_sent) {
-                        $email_verification_sent = true;
-                        $success = 'Registration successful! Please check your email to verify your account.';
-                    } else {
-                        // Log the error but don't stop registration
-                        error_log("Failed to send verification email to: " . $userEmail);
-                        $success = 'Registration successful! However, we couldn\'t send the verification email. Please contact support.';
-                    }
-                    
-                    // Clear form
-                    $_POST = [];
+
+                    $_SESSION['registration_email'] = $userEmail;
+                    $_SESSION['email_sent'] = $email_sent;
                 } catch (Exception $e) {
                     error_log("Mailer Error: " . $e->getMessage());
-                    $success = 'Registration successful! However, we couldn\'t send the verification email. You can request a new verification email from your profile.';
+                    $_SESSION['registration_email'] = $userEmail;
+                    $_SESSION['email_sent'] = false;
                 }
+
+                header('Location: registration-success.php');
+                exit;
             } else {
                 $error = 'Registration failed. Please try again.';
             }
@@ -276,22 +259,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
                                 <?php echo $error; ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        <?php endif; ?>
-
-                        <?php if ($success): ?>
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                <i class="bi bi-check-circle-fill me-2"></i>
-                                <?php echo htmlspecialchars($success); ?>
-                                <?php if ($email_verification_sent): ?>
-                                    <hr>
-                                    <p class="mb-0 small">
-                                        <i class="bi bi-envelope-fill me-1"></i>
-                                        We've sent a verification link to <strong><?php echo htmlspecialchars($userEmail); ?></strong>. 
-                                        Please check your inbox and spam folder.
-                                    </p>
-                                <?php endif; ?>
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
                         <?php endif; ?>
@@ -477,11 +444,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Password visibility toggle
         function togglePassword(inputId, element) {
             const input = document.getElementById(inputId);
             const icon = element.querySelector('i');
-            
             if (input.type === 'password') {
                 input.type = 'text';
                 icon.classList.remove('bi-eye');
@@ -493,7 +458,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Real-time email validation
         const emailInput = document.getElementById('email');
         if (emailInput) {
             emailInput.addEventListener('input', function(e) {
@@ -530,12 +494,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         }
 
-        // Password strength checker
         const passwordInput = document.getElementById('password');
         if (passwordInput) {
             passwordInput.addEventListener('input', function(e) {
-                const password = this.value;
-                checkPasswordStrength(password);
+                checkPasswordStrength(this.value);
                 checkPasswordMatch();
             });
         }
@@ -554,42 +516,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const bar = document.getElementById('passwordStrengthBar');
             const text = document.getElementById('passwordStrengthText');
             
-            // Check requirements
             const hasLength = password.length >= 8;
             const hasUppercase = /[A-Z]/.test(password);
             const hasLowercase = /[a-z]/.test(password);
             const hasNumber = /[0-9]/.test(password);
             
-            // Update requirement indicators
             updateRequirement('req-length', hasLength);
             updateRequirement('req-uppercase', hasUppercase);
             updateRequirement('req-lowercase', hasLowercase);
             updateRequirement('req-number', hasNumber);
             
-            // Calculate strength
-            const requirements = [hasLength, hasUppercase, hasLowercase, hasNumber];
-            const metCount = requirements.filter(Boolean).length;
+            const metCount = [hasLength, hasUppercase, hasLowercase, hasNumber].filter(Boolean).length;
             
-            let strengthPercent = 0;
-            let strengthText = '';
-            let barColor = '';
+            let strengthPercent = 0, strengthText = '', barColor = '';
             
             if (password.length === 0) {
-                strengthPercent = 0;
-                strengthText = 'Enter password';
-                barColor = '';
+                strengthPercent = 0; strengthText = 'Enter password'; barColor = '';
             } else if (metCount <= 2) {
-                strengthPercent = 25;
-                strengthText = 'Weak';
-                barColor = 'bg-danger';
+                strengthPercent = 25; strengthText = 'Weak'; barColor = 'bg-danger';
             } else if (metCount === 3) {
-                strengthPercent = 50;
-                strengthText = 'Fair';
-                barColor = 'bg-warning';
-            } else if (metCount === 4) {
-                strengthPercent = 100;
-                strengthText = 'Strong';
-                barColor = 'bg-success';
+                strengthPercent = 50; strengthText = 'Fair'; barColor = 'bg-warning';
+            } else {
+                strengthPercent = 100; strengthText = 'Strong'; barColor = 'bg-success';
             }
             
             if (bar) {
@@ -605,23 +553,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         function updateRequirement(elementId, isValid) {
             const element = document.getElementById(elementId);
             if (!element) return;
-            
             const icon = element.querySelector('i');
-            
             if (isValid) {
-                element.classList.remove('invalid');
-                element.classList.add('valid');
-                if (icon) {
-                    icon.classList.remove('bi-x-circle');
-                    icon.classList.add('bi-check-circle');
-                }
+                element.classList.replace('invalid', 'valid');
+                if (icon) { icon.classList.replace('bi-x-circle', 'bi-check-circle'); }
             } else {
-                element.classList.remove('valid');
-                element.classList.add('invalid');
-                if (icon) {
-                    icon.classList.remove('bi-check-circle');
-                    icon.classList.add('bi-x-circle');
-                }
+                element.classList.replace('valid', 'invalid');
+                if (icon) { icon.classList.replace('bi-check-circle', 'bi-x-circle'); }
             }
         }
 
@@ -629,9 +567,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const password = document.getElementById('password');
             const confirm = document.getElementById('confirm_password');
             const feedback = document.getElementById('passwordMatchFeedback');
-            
             if (!password || !confirm || !feedback) return;
-            
             if (confirm.value.length > 0) {
                 if (password.value === confirm.value) {
                     confirm.classList.add('is-valid');
@@ -648,7 +584,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Form validation before submit
         const registrationForm = document.getElementById('registrationForm');
         if (registrationForm) {
             registrationForm.addEventListener('submit', function(e) {
@@ -656,34 +591,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 const confirm = document.getElementById('confirm_password');
                 const email = document.getElementById('email');
                 const terms = document.getElementById('terms');
-                
                 if (!password || !confirm || !email || !terms) return;
-                
                 if (password.value !== confirm.value) {
                     e.preventDefault();
                     alert('Passwords do not match!');
                     return;
                 }
-                
                 if (!isValidEmail(email.value)) {
                     e.preventDefault();
                     alert('Please enter a valid email address!');
                     return;
                 }
-                
                 if (!terms.checked) {
                     e.preventDefault();
                     alert('You must agree to the Terms of Service and Privacy Policy!');
                     return;
                 }
-                
                 const requirements = [
                     password.value.length >= 8,
                     /[A-Z]/.test(password.value),
                     /[a-z]/.test(password.value),
                     /[0-9]/.test(password.value)
                 ];
-                
                 if (!requirements.every(Boolean)) {
                     e.preventDefault();
                     alert('Please meet all password requirements!');

@@ -1,34 +1,271 @@
 <?php
 require_once '../../includes/auth.php';
 requireAdmin();
-require_once '../../includes/header.php';
+require_once '../../includes/functions.php';
 require_once '../../classes/Database.php';
-
-requireAdmin();
+require_once '../../config/paystack.php';
 
 $db = new Database();
 
-// Handle payout actions
-if (isset($_GET['process_payout'])) {
-    $payout_id = (int)$_GET['process_payout'];
-    
-    $db->query(
-        "UPDATE seller_payouts SET status = 'processing', processed_at = NOW() WHERE id = ?",
-        [$payout_id]
-    );
-    setFlashMessage('Payout marked as processing', 'success');
-    header('Location: payouts.php');
-    exit;
+function generateAdminPayoutReference($payout_id) {
+    return 'ga_admin_payout_' . $payout_id . '_' . time() . '_' . bin2hex(random_bytes(4));
 }
 
-if (isset($_GET['mark_paid'])) {
-    $payout_id = (int)$_GET['mark_paid'];
-    
-    $db->query(
-        "UPDATE seller_payouts SET status = 'paid', paid_at = NOW() WHERE id = ?",
-        [$payout_id]
+function mapAdminPaystackTransferStatus($status) {
+    $status = strtolower((string)$status);
+
+    if ($status === 'success') {
+        return 'paid';
+    }
+
+    if (in_array($status, ['failed', 'reversed', 'abandoned', 'rejected', 'blocked'], true)) {
+        return 'failed';
+    }
+
+    return 'processing';
+}
+
+function processPaystackPayout(Database $db, $payout_id) {
+    $payout = $db->fetchOne("
+        SELECT 
+            spay.id,
+            spay.seller_id,
+            spay.net_amount,
+            spay.status,
+            spay.paystack_transfer_reference,
+            sfi.bank_name,
+            sfi.bank_code,
+            sfi.account_number,
+            sfi.account_name,
+            sfi.is_bank_verified,
+            sp.business_name
+        FROM seller_payouts spay
+        LEFT JOIN seller_financial_info sfi ON spay.seller_id = sfi.seller_id
+        LEFT JOIN seller_profiles sp ON spay.seller_id = sp.user_id
+        WHERE spay.id = ?
+    ", [$payout_id]);
+
+    if (!$payout) {
+        return ['success' => false, 'message' => 'Payout not found.'];
+    }
+
+    if ($payout['status'] === 'paid') {
+        return ['success' => false, 'message' => 'This payout has already been paid.'];
+    }
+
+    $has_transfer_code = !empty($payout['paystack_transfer_reference'])
+        && strpos($payout['paystack_transfer_reference'], 'TRF_') === 0;
+
+    if ($payout['status'] === 'processing' && $has_transfer_code) {
+        return ['success' => false, 'message' => 'This payout is already processing.'];
+    }
+
+    if (empty($payout['is_bank_verified']) || empty($payout['bank_code']) || empty($payout['account_number']) || empty($payout['account_name'])) {
+        return ['success' => false, 'message' => 'Seller does not have verified bank details.'];
+    }
+
+    $amount = (float)$payout['net_amount'];
+    if ($amount <= 0) {
+        return ['success' => false, 'message' => 'Payout amount is invalid.'];
+    }
+
+    $transfer_reference = generateAdminPayoutReference($payout_id);
+
+    $lock_stmt = $db->query(
+        "UPDATE seller_payouts
+         SET status = 'processing', processed_at = ?, paystack_transfer_reference = ?
+         WHERE id = ?
+            AND (
+                status IN ('pending', 'failed')
+                OR (
+                    status = 'processing'
+                    AND (paystack_transfer_reference IS NULL OR paystack_transfer_reference NOT LIKE 'TRF_%')
+                )
+            )",
+        [date('Y-m-d H:i:s'), $transfer_reference, $payout_id]
     );
-    setFlashMessage('Payout marked as paid', 'success');
+    $updated = $lock_stmt->affected_rows;
+    $lock_stmt->close();
+
+    if ($updated <= 0) {
+        return ['success' => false, 'message' => 'Payout could not be locked for processing. Please refresh and try again.'];
+    }
+
+    $recipient_response = PaystackAPI::createTransferRecipient(
+        $payout['account_name'],
+        $payout['account_number'],
+        $payout['bank_code'],
+        'Green Agric seller payout'
+    );
+
+    if (empty($recipient_response['status']) || empty($recipient_response['data']['recipient_code'])) {
+        $db->update('seller_payouts', ['status' => 'failed'], 'id = ?', [$payout_id]);
+
+        return [
+            'success' => false,
+            'message' => $recipient_response['message'] ?? 'Paystack could not create the transfer recipient.'
+        ];
+    }
+
+    $transfer_response = PaystackAPI::initiateTransfer(
+        $amount,
+        $recipient_response['data']['recipient_code'],
+        $transfer_reference,
+        'Green Agric seller payout'
+    );
+
+    if (empty($transfer_response['status']) || empty($transfer_response['data'])) {
+        $db->update('seller_payouts', ['status' => 'failed'], 'id = ?', [$payout_id]);
+
+        return [
+            'success' => false,
+            'message' => $transfer_response['message'] ?? 'Paystack could not initiate the transfer.'
+        ];
+    }
+
+    $paystack_status = $transfer_response['data']['status'] ?? 'pending';
+    $payout_status = mapAdminPaystackTransferStatus($paystack_status);
+    $transfer_code = $transfer_response['data']['transfer_code'] ?? '';
+
+    if ($transfer_code) {
+        $db->update(
+            'seller_payouts',
+            ['paystack_transfer_reference' => $transfer_code],
+            'id = ?',
+            [$payout_id]
+        );
+    }
+
+    if ($payout_status === 'paid') {
+        $db->query(
+            "UPDATE seller_payouts SET status = 'paid', paid_at = NOW() WHERE id = ?",
+            [$payout_id]
+        );
+    } else {
+        $db->update('seller_payouts', ['status' => $payout_status], 'id = ?', [$payout_id]);
+    }
+
+    if (strtolower((string)$paystack_status) === 'otp') {
+        $message = $transfer_response['message'] ?? 'Paystack requires OTP to complete this payout.';
+    } elseif ($payout_status === 'paid') {
+        $message = 'Paystack payout sent successfully.';
+    } else {
+        $message = 'Paystack payout initiated. Status will update after Paystack confirms the transfer.';
+    }
+
+    return [
+        'success' => true,
+        'message' => $message,
+        'status' => $payout_status
+    ];
+}
+
+function finalizePaystackPayoutOtp(Database $db, $payout_id, $otp) {
+    $otp = preg_replace('/\D/', '', (string)$otp);
+
+    if ($otp === '') {
+        return ['success' => false, 'message' => 'Please enter the Paystack OTP.'];
+    }
+
+    $payout = $db->fetchOne("
+        SELECT id, status, paystack_transfer_reference
+        FROM seller_payouts
+        WHERE id = ?
+    ", [$payout_id]);
+
+    if (!$payout) {
+        return ['success' => false, 'message' => 'Payout not found.'];
+    }
+
+    if ($payout['status'] !== 'processing') {
+        return ['success' => false, 'message' => 'Only processing payouts can accept an OTP.'];
+    }
+
+    $transfer_code = $payout['paystack_transfer_reference'] ?? '';
+    if (!$transfer_code || strpos($transfer_code, 'TRF_') !== 0) {
+        return ['success' => false, 'message' => 'Paystack transfer code is missing. Retry the payout.'];
+    }
+
+    $response = PaystackAPI::finalizeTransfer($transfer_code, $otp);
+
+    if (empty($response['status']) || empty($response['data'])) {
+        return [
+            'success' => false,
+            'message' => $response['message'] ?? 'Paystack could not verify the OTP.'
+        ];
+    }
+
+    $paystack_status = $response['data']['status'] ?? 'pending';
+    $payout_status = mapAdminPaystackTransferStatus($paystack_status);
+
+    if ($payout_status === 'paid') {
+        $db->query(
+            "UPDATE seller_payouts SET status = 'paid', paid_at = NOW() WHERE id = ?",
+            [$payout_id]
+        );
+    } else {
+        $db->update('seller_payouts', ['status' => $payout_status], 'id = ?', [$payout_id]);
+    }
+
+    return [
+        'success' => true,
+        'message' => $payout_status === 'paid'
+            ? 'Paystack OTP accepted. Payout sent successfully.'
+            : 'Paystack OTP accepted. Transfer is still processing.',
+        'status' => $payout_status
+    ];
+}
+
+// Handle payout actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        setFlashMessage('Invalid session token. Please refresh and try again.', 'error');
+        header('Location: payouts.php');
+        exit;
+    }
+
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'process_payout') {
+        $result = processPaystackPayout($db, (int)($_POST['payout_id'] ?? 0));
+        setFlashMessage($result['message'], $result['success'] ? 'success' : 'error');
+    }
+
+    if ($action === 'finalize_payout_otp') {
+        $result = finalizePaystackPayoutOtp($db, (int)($_POST['payout_id'] ?? 0), $_POST['otp'] ?? '');
+        setFlashMessage($result['message'], $result['success'] ? 'success' : 'error');
+    }
+
+    if ($action === 'process_all_pending') {
+        $pending_ids = $db->fetchAll("SELECT id FROM seller_payouts WHERE status = 'pending' ORDER BY created_at ASC");
+        $success_count = 0;
+        $failed_count = 0;
+
+        foreach ($pending_ids as $pending) {
+            $result = processPaystackPayout($db, (int)$pending['id']);
+            if ($result['success']) {
+                $success_count++;
+            } else {
+                $failed_count++;
+            }
+        }
+
+        setFlashMessage(
+            "Paystack processing complete: {$success_count} sent/processing, {$failed_count} failed.",
+            $failed_count > 0 ? 'warning' : 'success'
+        );
+    }
+
+    if ($action === 'mark_paid') {
+        $payout_id = (int)($_POST['payout_id'] ?? 0);
+
+        $db->query(
+            "UPDATE seller_payouts SET status = 'paid', paid_at = NOW() WHERE id = ?",
+            [$payout_id]
+        );
+        setFlashMessage('Payout marked as paid', 'success');
+    }
+
     header('Location: payouts.php');
     exit;
 }
@@ -104,6 +341,8 @@ $stats = [
 
 $page_title = "Seller Payouts";
 $page_css = 'dashboard.css';
+$csrf_token = getCSRFToken();
+require_once '../../includes/header.php';
 ?>
 
 <div class="container-fluid">
@@ -145,10 +384,14 @@ $page_css = 'dashboard.css';
                         </button>
                     </div>
                     <?php if($stats['pending_payouts'] > 0): ?>
-                        <a href="?process_all_pending=true" class="btn btn-sm btn-primary" 
-                           onclick="return confirm('Process all <?php echo $stats['pending_payouts']; ?> pending payouts?')">
-                            <i class="bi bi-play-circle me-1"></i> Process All
-                        </a>
+                        <form method="POST" action="" class="d-inline" id="processAllPendingForm"
+                              onsubmit="return confirm('This will send <?php echo $stats['pending_payouts']; ?> real Paystack payout transfers. Continue?')">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                            <input type="hidden" name="action" value="process_all_pending">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="bi bi-send-check me-1"></i> Pay All via Paystack
+                            </button>
+                        </form>
                     <?php endif; ?>
                 </div>
             </div>
@@ -327,10 +570,9 @@ $page_css = 'dashboard.css';
                                         <i class="bi bi-x-circle me-1"></i> Clear
                                     </a>
                                     <?php if($stats['pending_payouts'] > 0): ?>
-                                        <a href="?process_all_pending=true" class="btn btn-warning btn-sm" 
-                                           onclick="return confirm('Process all <?php echo $stats['pending_payouts']; ?> pending payouts?')">
-                                            <i class="bi bi-play-circle me-1"></i> Process All
-                                        </a>
+                                        <button type="submit" form="processAllPendingForm" class="btn btn-warning btn-sm">
+                                            <i class="bi bi-send-check me-1"></i> Pay All via Paystack
+                                        </button>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -400,6 +642,9 @@ $page_css = 'dashboard.css';
                                         $commission_amount = $payout['commission_amount'];
                                         $net_amount = $payout['net_amount'];
                                         $gross_amount = $payout['amount'];
+                                        $has_paystack_transfer_code = !empty($payout['paystack_transfer_reference']) && strpos($payout['paystack_transfer_reference'], 'TRF_') === 0;
+                                        $can_process_payout = in_array($payout['status'], ['pending', 'failed'], true) || ($payout['status'] === 'processing' && !$has_paystack_transfer_code);
+                                        $needs_paystack_otp = $payout['status'] === 'processing' && $has_paystack_transfer_code;
                                         ?>
                                         
                                         <tr class="payout-row" data-payout-id="<?php echo $payout['id']; ?>">
@@ -449,18 +694,33 @@ $page_css = 'dashboard.css';
                                             </td>
                                             <td class="d-none d-md-table-cell text-center">
                                                 <div class="btn-group btn-group-sm">
-                                                    <?php if ($payout['status'] === 'pending'): ?>
-                                                        <a href="?process_payout=<?php echo $payout['id']; ?>" 
-                                                           class="btn btn-outline-info"
-                                                           onclick="return confirm('Mark this payout as processing?')">
-                                                            <i class="bi bi-play"></i>
-                                                        </a>
-                                                    <?php elseif ($payout['status'] === 'processing'): ?>
-                                                        <a href="?mark_paid=<?php echo $payout['id']; ?>" 
-                                                           class="btn btn-outline-success"
-                                                           onclick="return confirm('Mark this payout as paid?')">
-                                                            <i class="bi bi-check"></i>
-                                                        </a>
+                                                    <?php if ($can_process_payout): ?>
+                                                        <form method="POST" action="" class="d-inline"
+                                                              onsubmit="return confirm('<?php echo $payout['status'] === 'pending' ? 'Send' : 'Retry'; ?> this payout through Paystack now?')">
+                                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                            <input type="hidden" name="action" value="process_payout">
+                                                            <input type="hidden" name="payout_id" value="<?php echo (int)$payout['id']; ?>">
+                                                            <button type="submit" class="btn btn-outline-<?php echo $payout['status'] === 'pending' ? 'info' : 'warning'; ?>"
+                                                                    title="<?php echo $payout['status'] === 'pending' ? 'Pay via Paystack' : 'Retry via Paystack'; ?>">
+                                                                <i class="bi <?php echo $payout['status'] === 'pending' ? 'bi-send-check' : 'bi-arrow-clockwise'; ?>"></i>
+                                                            </button>
+                                                        </form>
+                                                    <?php elseif ($needs_paystack_otp): ?>
+                                                        <button type="button" class="btn btn-outline-warning"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#payoutModal<?php echo $payout['id']; ?>"
+                                                                title="Enter Paystack OTP">
+                                                            <i class="bi bi-key"></i>
+                                                        </button>
+                                                        <form method="POST" action="" class="d-inline"
+                                                              onsubmit="return confirm('Mark this payout as paid manually?')">
+                                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                            <input type="hidden" name="action" value="mark_paid">
+                                                            <input type="hidden" name="payout_id" value="<?php echo (int)$payout['id']; ?>">
+                                                            <button type="submit" class="btn btn-outline-success">
+                                                                <i class="bi bi-check"></i>
+                                                            </button>
+                                                        </form>
                                                     <?php endif; ?>
                                                     <button class="btn btn-outline-primary" 
                                                             data-bs-toggle="modal" 
@@ -521,18 +781,31 @@ $page_css = 'dashboard.css';
                                                             </small>
                                                         </div>
                                                         <div class="btn-group btn-group-sm">
-                                                            <?php if ($payout['status'] === 'pending'): ?>
-                                                                <a href="?process_payout=<?php echo $payout['id']; ?>" 
-                                                                   class="btn btn-sm btn-outline-info"
-                                                                   onclick="return confirm('Mark as processing?')">
-                                                                    <i class="bi bi-play"></i>
-                                                                </a>
-                                                            <?php elseif ($payout['status'] === 'processing'): ?>
-                                                                <a href="?mark_paid=<?php echo $payout['id']; ?>" 
-                                                                   class="btn btn-sm btn-outline-success"
-                                                                   onclick="return confirm('Mark as paid?')">
-                                                                    <i class="bi bi-check"></i>
-                                                                </a>
+                                                            <?php if ($can_process_payout): ?>
+                                                                <form method="POST" action="" class="d-inline"
+                                                                      onsubmit="return confirm('<?php echo $payout['status'] === 'pending' ? 'Send' : 'Retry'; ?> this payout through Paystack now?')">
+                                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                                    <input type="hidden" name="action" value="process_payout">
+                                                                    <input type="hidden" name="payout_id" value="<?php echo (int)$payout['id']; ?>">
+                                                                    <button type="submit" class="btn btn-sm btn-outline-<?php echo $payout['status'] === 'pending' ? 'info' : 'warning'; ?>">
+                                                                        <i class="bi <?php echo $payout['status'] === 'pending' ? 'bi-send-check' : 'bi-arrow-clockwise'; ?>"></i>
+                                                                    </button>
+                                                                </form>
+                                                            <?php elseif ($needs_paystack_otp): ?>
+                                                                <button type="button" class="btn btn-sm btn-outline-warning"
+                                                                        data-bs-toggle="modal"
+                                                                        data-bs-target="#payoutModal<?php echo $payout['id']; ?>">
+                                                                    <i class="bi bi-key"></i>
+                                                                </button>
+                                                                <form method="POST" action="" class="d-inline"
+                                                                      onsubmit="return confirm('Mark this payout as paid manually?')">
+                                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                                                    <input type="hidden" name="action" value="mark_paid">
+                                                                    <input type="hidden" name="payout_id" value="<?php echo (int)$payout['id']; ?>">
+                                                                    <button type="submit" class="btn btn-sm btn-outline-success">
+                                                                        <i class="bi bi-check"></i>
+                                                                    </button>
+                                                                </form>
                                                             <?php endif; ?>
                                                             <button class="btn btn-sm btn-outline-primary" 
                                                                     data-bs-toggle="modal" 
@@ -606,6 +879,11 @@ $page_css = 'dashboard.css';
 
 <!-- Modals for each payout -->
 <?php foreach ($payouts as $payout): ?>
+    <?php
+    $has_paystack_transfer_code = !empty($payout['paystack_transfer_reference']) && strpos($payout['paystack_transfer_reference'], 'TRF_') === 0;
+    $can_process_payout = in_array($payout['status'], ['pending', 'failed'], true) || ($payout['status'] === 'processing' && !$has_paystack_transfer_code);
+    $needs_paystack_otp = $payout['status'] === 'processing' && $has_paystack_transfer_code;
+    ?>
     <!-- Payout Details Modal -->
     <div class="modal fade" id="payoutModal<?php echo $payout['id']; ?>" tabindex="-1">
         <div class="modal-dialog modal-lg">
@@ -635,6 +913,17 @@ $page_css = 'dashboard.css';
                                         <small class="text-muted">Email</small>
                                         <p class="mb-0"><?php echo htmlspecialchars($payout['email']); ?></p>
                                     </div>
+                                    <?php if ($needs_paystack_otp): ?>
+                                        <div class="alert alert-warning mt-3 mb-0">
+                                            <i class="bi bi-key me-2"></i>
+                                            If Paystack sent an OTP for this transfer, enter it below to complete the payout.
+                                        </div>
+                                    <?php elseif ($payout['status'] === 'failed' || ($payout['status'] === 'processing' && !$has_paystack_transfer_code)): ?>
+                                        <div class="alert alert-danger mt-3 mb-0">
+                                            <i class="bi bi-arrow-clockwise me-2"></i>
+                                            This payout can be retried through Paystack below.
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -719,18 +1008,40 @@ $page_css = 'dashboard.css';
                 </div>
                 <div class="modal-footer">
                     <div class="d-flex gap-2 w-100">
-                        <?php if ($payout['status'] === 'pending'): ?>
-                            <a href="?process_payout=<?php echo $payout['id']; ?>" 
-                               class="btn btn-info flex-fill"
-                               onclick="return confirm('Mark this payout as processing?')">
-                                <i class="bi bi-play me-1"></i> Mark as Processing
-                            </a>
-                        <?php elseif ($payout['status'] === 'processing'): ?>
-                            <a href="?mark_paid=<?php echo $payout['id']; ?>" 
-                               class="btn btn-success flex-fill"
-                               onclick="return confirm('Mark this payout as paid?')">
-                                <i class="bi bi-check me-1"></i> Mark as Paid
-                            </a>
+                        <?php if ($can_process_payout): ?>
+                            <form method="POST" action="" class="flex-fill"
+                                  onsubmit="return confirm('<?php echo $payout['status'] === 'pending' ? 'Send' : 'Retry'; ?> this payout through Paystack now?')">
+                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                <input type="hidden" name="action" value="process_payout">
+                                <input type="hidden" name="payout_id" value="<?php echo (int)$payout['id']; ?>">
+                                <button type="submit" class="btn btn-<?php echo $payout['status'] === 'pending' ? 'info' : 'warning'; ?> w-100">
+                                    <i class="bi <?php echo $payout['status'] === 'pending' ? 'bi-send-check' : 'bi-arrow-clockwise'; ?> me-1"></i>
+                                    <?php echo $payout['status'] === 'pending' ? 'Pay via Paystack' : 'Retry Paystack Payout'; ?>
+                                </button>
+                            </form>
+                        <?php elseif ($needs_paystack_otp): ?>
+                            <form method="POST" action="" class="flex-fill">
+                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                <input type="hidden" name="action" value="finalize_payout_otp">
+                                <input type="hidden" name="payout_id" value="<?php echo (int)$payout['id']; ?>">
+                                <div class="input-group">
+                                    <input type="text" name="otp" class="form-control"
+                                           inputmode="numeric" pattern="[0-9]*"
+                                           placeholder="Paystack OTP" required>
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="bi bi-key me-1"></i> Submit OTP
+                                    </button>
+                                </div>
+                            </form>
+                            <form method="POST" action="" class="flex-fill"
+                                  onsubmit="return confirm('Mark this payout as paid manually?')">
+                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                <input type="hidden" name="action" value="mark_paid">
+                                <input type="hidden" name="payout_id" value="<?php echo (int)$payout['id']; ?>">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="bi bi-check me-1"></i> Mark as Paid
+                                </button>
+                            </form>
                         <?php endif; ?>
                         <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>

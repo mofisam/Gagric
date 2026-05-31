@@ -5,6 +5,8 @@ require_once '../../classes/Database.php';
 
 requireSeller();
 
+header('Content-Type: application/json');
+
 $db = new Database();
 $seller_id = $_SESSION['user_id'];
 
@@ -61,8 +63,7 @@ try {
         
         // Update item status
         $db->update('order_items', [
-            'status' => $new_status,
-            'updated_at' => date('Y-m-d H:i:s')
+            'status' => $new_status
         ], 'id = ?', [$order_item_id]);
         
         // Log history
@@ -80,9 +81,8 @@ try {
             $db->update('order_shipping_details', [
                 'tracking_number' => $tracking_number,
                 'logistics_partner' => 'Seller Logistics',
-                'estimated_delivery' => date('Y-m-d', strtotime('+3 days')),
-                'updated_at' => date('Y-m-d H:i:s')
-            ], 'order_item_id = ?', [$order_item_id]);
+                'estimated_delivery' => date('Y-m-d', strtotime('+3 days'))
+            ], 'order_id = ?', [$item['order_id']]);
         }
         
         echo json_encode([
@@ -128,14 +128,12 @@ try {
             'order_id' => $order_id,
             'status' => $new_status,
             'changed_by' => $seller_id,
-            'notes' => $notes,
-            'ip_address' => $_SERVER['REMOTE_ADDR']
+            'notes' => $notes
         ]);
         
         // Update all seller's items in this order
         $db->update('order_items', [
-            'status' => $new_status,
-            'updated_at' => date('Y-m-d H:i:s')
+            'status' => $new_status
         ], 'order_id = ? AND seller_id = ?', [$order_id, $seller_id]);
         
         echo json_encode([
