@@ -26,14 +26,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $last_name = trim($_POST['last_name']);
     $userEmail = trim($_POST['email']);
     $phone = trim($_POST['phone']);
+    $date_of_birth = trim($_POST['date_of_birth'] ?? '');
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
     $role = $_POST['role'] ?? 'buyer';
     
     $validation_errors = [];
     
-    if (empty($first_name) || empty($last_name) || empty($userEmail) || empty($phone) || empty($password)) {
+    if (empty($first_name) || empty($last_name) || empty($userEmail) || empty($phone) || empty($date_of_birth) || empty($password)) {
         $validation_errors[] = 'All fields are required';
+    }
+
+    $dobDate = null;
+    if (!empty($date_of_birth)) {
+        $dobDate = DateTimeImmutable::createFromFormat('!Y-m-d', $date_of_birth);
+        $dobErrors = DateTimeImmutable::getLastErrors();
+        $hasDobErrors = $dobErrors !== false && ($dobErrors['warning_count'] > 0 || $dobErrors['error_count'] > 0);
+        $today = new DateTimeImmutable('today');
+
+        if (!$dobDate || $hasDobErrors || $dobDate->format('Y-m-d') !== $date_of_birth) {
+            $validation_errors[] = 'Please enter a valid date of birth';
+        } elseif ($dobDate > $today->modify('-18 years')) {
+            $validation_errors[] = 'You must be at least 18 years old to register';
+        }
     }
     
     if ($password !== $confirm_password) {
@@ -79,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'last_name' => $last_name,
                 'email' => $userEmail,
                 'phone' => $phone,
+                'date_of_birth' => $date_of_birth,
                 'password' => $password,
                 'role' => $role,
                 'email_verification_token' => $verification_token,
@@ -324,6 +340,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div class="form-text">
                                     <i class="bi bi-info-circle me-1"></i>
                                     Enter your Nigerian phone number
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="date_of_birth" class="form-label fw-semibold">
+                                    <i class="bi bi-calendar-date text-success me-1"></i>Date of Birth
+                                </label>
+                                <input type="date" 
+                                       class="form-control form-control-lg" 
+                                       id="date_of_birth" 
+                                       name="date_of_birth" 
+                                       value="<?php echo htmlspecialchars($_POST['date_of_birth'] ?? ''); ?>" 
+                                       max="<?php echo date('Y-m-d', strtotime('-18 years')); ?>"
+                                       required>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    You must be at least 18 years old to register
                                 </div>
                             </div>
 
@@ -590,8 +623,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 const password = document.getElementById('password');
                 const confirm = document.getElementById('confirm_password');
                 const email = document.getElementById('email');
+                const dateOfBirth = document.getElementById('date_of_birth');
                 const terms = document.getElementById('terms');
-                if (!password || !confirm || !email || !terms) return;
+                if (!password || !confirm || !email || !dateOfBirth || !terms) return;
                 if (password.value !== confirm.value) {
                     e.preventDefault();
                     alert('Passwords do not match!');
@@ -600,6 +634,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!isValidEmail(email.value)) {
                     e.preventDefault();
                     alert('Please enter a valid email address!');
+                    return;
+                }
+                if (!isAtLeast18(dateOfBirth.value)) {
+                    e.preventDefault();
+                    alert('You must be at least 18 years old to register!');
                     return;
                 }
                 if (!terms.checked) {
@@ -619,6 +658,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     return;
                 }
             });
+        }
+
+        function isAtLeast18(dateValue) {
+            if (!dateValue) return false;
+            const dob = new Date(dateValue + 'T00:00:00');
+            if (Number.isNaN(dob.getTime())) return false;
+
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const monthDiff = today.getMonth() - dob.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+                age--;
+            }
+
+            return age >= 18;
         }
     </script>
 </body>

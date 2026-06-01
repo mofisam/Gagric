@@ -451,7 +451,7 @@ class Mailer {
             <h3>⚠️ Important Security Information</h3>
             <ul style="padding-left: 20px;">
                 <li>This link expires in <strong>1 hour</strong> (' . $expiry_time . ')</li>
-                <li>If you didn\'t request this reset, please ignore this email</li>
+                <li>If you did not request this reset, please ignore this email</li>
                 <li>Never share your password or this link with anyone</li>
                 <li>Our team will never ask for your password</li>
             </ul>
@@ -519,7 +519,7 @@ class Mailer {
             <h3>⚠️ Important Information</h3>
             <ul style="padding-left: 20px;">
                 <li>This verification link expires in <strong>24 hours</strong></li>
-                <li>If you didn\'t create an account, please ignore this email</li>
+                <li>If you did not create an account, please ignore this email</li>
                 <li>Verify your email to access all features</li>
             </ul>
         </div>
