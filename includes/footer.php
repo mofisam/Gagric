@@ -42,10 +42,10 @@
             <div class="col-md-2 mb-4">
                 <h6 class="fw-bold">Company</h6>
                 <ul class="list-unstyled">
-                    <li><a href="<?php echo BASE_URL; ?>/about-us.php" class="text-light text-decoration-none">About Us</a></li>
-                    <li><a href="<?php echo BASE_URL; ?>/contact.php" class="text-light text-decoration-none">Contact</a></li>
-                    <li><a href="<?php echo BASE_URL; ?>/privacy-policy.php" class="text-light text-decoration-none">Privacy Policy</a></li>
-                    <li><a href="<?php echo BASE_URL; ?>/terms-of-service.php" class="text-light text-decoration-none">Terms of Service</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/about-us" class="text-light text-decoration-none">About Us</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/contact" class="text-light text-decoration-none">Contact</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/privacy-policy" class="text-light text-decoration-none">Privacy Policy</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/terms-and-conditions" class="text-light text-decoration-none">Terms of Service</a></li>
                 </ul>
             </div>
             

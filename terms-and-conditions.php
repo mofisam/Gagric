@@ -11,12 +11,6 @@ include 'includes/header.php';
     <!-- Page Header -->
     <div class="text-center mb-4">
         <h1 class="display-5 fw-bold text-success mb-3">Terms and Conditions</h1>
-        <div class="alert alert-warning border-warning">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            <strong>Effective Date:</strong> February 1st, 2026
-        </div>
-    </div>
-
     <!-- Quick Navigation -->
     <div class="sticky-top bg-white py-2 border-bottom mb-4" style="top: 70px; z-index: 1000;">
         <div class="d-flex flex-wrap gap-1 justify-content-center">
@@ -43,12 +37,12 @@ include 'includes/header.php';
         <div class="card-body">
             <p class="mb-2"><strong>TERMS & CONDITIONS</strong></p>
             <p class="mb-2"><strong>Green Agric</strong></p>
-            <p class="mb-2"><strong>Effective Date:</strong> [Insert Date]</p>
+            <p class="mb-2"><strong>Effective Date:</strong> June 1st, 2026</p>
             <hr>
             <p class="mb-3">These Terms and Conditions ("Terms") govern the registration and use of accounts on the Green Agric platform ("Platform"). By creating an account, you agree to be bound by these Terms.</p>
-            <div class="alert alert-danger mb-0">
+            <div class="bg-danger p-3 rounded-3 bg-opacity-25 mb-0">
                 <i class="bi bi-x-circle-fill me-2"></i>
-                <strong>If you do not agree, do not create an account or use the Platform.</strong>
+                <span>If you do not agree, do not create an account or use the Platform.</span>
             </div>
         </div>
     </div>

@@ -63,7 +63,7 @@ include 'includes/header.php';
                         <h3 class="h5 mb-0">
                             <i class="bi bi-shield-check me-2"></i> Acceptable Use Policy
                         </h3>
-                        <span class="badge bg-light text-success">Effective: Feb 1, 2026</span>
+                        <span class="badge bg-light text-success">Section 1</span>
                     </div>
                     <div class="card-body">
                         <div class="alert alert-info mb-4">
@@ -168,7 +168,7 @@ include 'includes/header.php';
                         <h3 class="h5 mb-0">
                             <i class="bi bi-arrow-counterclockwise me-2"></i> Refund Policy
                         </h3>
-                        <span class="badge bg-light text-warning">Effective: Feb 1, 2026</span>
+                        <span class="badge bg-light text-warning">Section 2</span>
                     </div>
                     <div class="card-body">
                         <p class="mb-4">Green Agric is committed to transparent and fair transactions while recognizing the nature of agricultural goods.</p>
@@ -262,7 +262,7 @@ include 'includes/header.php';
                         <h3 class="h5 mb-0">
                             <i class="bi bi-people me-2"></i> Dispute Resolution Policy
                         </h3>
-                        <span class="badge bg-light text-info">Effective: Feb 1, 2026</span>
+                        <span class="badge bg-light text-info">Section 3</span>
                     </div>
                     <div class="card-body">
                         <p class="mb-4">This policy outlines how disputes between buyers and sellers are handled.</p>
@@ -348,7 +348,7 @@ include 'includes/header.php';
                         <h3 class="h5 mb-0">
                             <i class="bi bi-file-earmark-text me-2"></i> Terms of Service
                         </h3>
-                        <span class="badge bg-light text-primary">Effective: Feb 1, 2026</span>
+                        <span class="badge bg-light text-primary">Section 4</span>
                     </div>
                     <div class="card-body">
                         <div class="alert alert-primary mb-4">
@@ -399,7 +399,7 @@ include 'includes/header.php';
                         <h3 class="h5 mb-0">
                             <i class="bi bi-lock me-2"></i> Privacy Policy
                         </h3>
-                        <span class="badge bg-light text-secondary">Effective: Feb 1, 2026</span>
+                        <span class="badge bg-light text-secondary">Section 5</span>
                     </div>
                     <div class="card-body">
                         <div class="alert alert-secondary mb-4">
