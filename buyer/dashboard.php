@@ -18,6 +18,14 @@ $recent_orders_count = count($recent_orders);
 $total_orders = $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE buyer_id = ?", [$user_id])['count'];
 $total_spent = $db->fetchOne("SELECT SUM(total_amount) as total FROM orders WHERE buyer_id = ? AND payment_status = 'paid'", [$user_id])['total'] ?? 0;
 $wishlist_count = $db->fetchOne("SELECT COUNT(*) as count FROM wishlists WHERE user_id = ?", [$user_id])['count'];
+$address_count = $db->fetchOne("SELECT COUNT(*) as count FROM user_addresses WHERE user_id = ?", [$user_id])['count'] ?? 0;
+$default_address = $db->fetchOne("
+    SELECT ua.address_label, ua.city, s.name as state_name
+    FROM user_addresses ua
+    LEFT JOIN states s ON ua.state_id = s.id
+    WHERE ua.user_id = ? AND ua.is_default = TRUE
+    LIMIT 1
+", [$user_id]);
 
 // Get order status breakdown
 $order_stats = $db->fetchAll("
@@ -208,7 +216,6 @@ body {
     border-radius: var(--border-radius);
     padding: 1.5rem;
     box-shadow: var(--card-shadow);
-    height: 100%;
 }
 
 .activity-item {
@@ -258,6 +265,43 @@ body {
     transform: translateY(-2px);
     box-shadow: var(--hover-shadow);
     color: #198754;
+}
+
+.quick-action-btn .badge {
+    min-width: 28px;
+}
+
+.setup-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.setup-item {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    color: #334155;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.setup-item:hover {
+    border-color: #198754;
+    background: #f8fafc;
+    color: #198754;
+}
+
+.setup-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .category-chip {
@@ -347,6 +391,18 @@ body {
             </div>
         </div>
     </div>
+
+    <?php if ($address_count == 0): ?>
+        <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+            <div>
+                <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle me-2"></i>Add a delivery address</h6>
+                <p class="mb-0">Save your address now so checkout is faster when you are ready to buy.</p>
+            </div>
+            <a href="profile/addresses.php" class="btn btn-success fw-semibold">
+                <i class="bi bi-plus-circle me-2"></i> Add Address
+            </a>
+        </div>
+    <?php endif; ?>
     
     <!-- Main Stats Row -->
     <div class="row g-4 mb-4">
@@ -666,7 +722,10 @@ body {
         <div class="col-lg-4">
             <!-- Quick Actions -->
             <div class="chart-container mb-4 slide-up" style="animation-delay: 0.8s;">
-                <h5 class="fw-bold mb-4">Quick Actions</h5>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Quick Actions</h5>
+                    <a href="orders/order-history.php" class="small text-success text-decoration-none fw-semibold">Orders</a>
+                </div>
                 <div class="row g-3">
                     <div class="col-6">
                         <a href="products/browse.php" class="quick-action-btn">
@@ -684,17 +743,49 @@ body {
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="profile/personal-info.php" class="quick-action-btn">
-                            <i class="bi bi-person text-success mb-3" style="font-size: 1.75rem;"></i>
-                            <span class="fw-semibold">Profile</span>
+                        <a href="cart/view-cart.php" class="quick-action-btn">
+                            <i class="bi bi-cart3 text-success mb-3" style="font-size: 1.75rem;"></i>
+                            <span class="fw-semibold">Cart</span>
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="orders/track-order.php" class="quick-action-btn">
-                            <i class="bi bi-truck text-success mb-3" style="font-size: 1.75rem;"></i>
-                            <span class="fw-semibold">Track Order</span>
+                        <a href="orders/order-history.php" class="quick-action-btn">
+                            <i class="bi bi-receipt text-success mb-3" style="font-size: 1.75rem;"></i>
+                            <span class="fw-semibold">Orders</span>
+                            <?php if ($total_orders > 0): ?>
+                                <span class="badge bg-success mt-2"><?php echo $total_orders; ?></span>
+                            <?php endif; ?>
                         </a>
                     </div>
+                
+                </div>
+            </div>
+
+            <div class="chart-container mb-4 slide-up" style="animation-delay: 0.85s;">
+                <h5 class="fw-bold mb-4">Account Setup</h5>
+                <div class="setup-list">
+                    <a href="profile/addresses.php" class="setup-item">
+                        <span class="setup-icon <?php echo $address_count > 0 ? 'bg-success bg-opacity-10 text-success' : 'bg-warning bg-opacity-10 text-warning'; ?>">
+                            <i class="bi <?php echo $address_count > 0 ? 'bi-check-circle-fill' : 'bi-geo-alt-fill'; ?>"></i>
+                        </span>
+                        <span class="flex-grow-1">
+                            <span class="d-block fw-semibold"><?php echo $address_count > 0 ? 'Delivery address ready' : 'Add delivery address'; ?></span>
+                            <small class="text-muted">
+                                <?php echo $default_address ? htmlspecialchars($default_address['address_label'] . ' - ' . $default_address['city'] . ', ' . $default_address['state_name']) : 'Required for checkout and delivery'; ?>
+                            </small>
+                        </span>
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                    <a href="profile/personal-info.php" class="setup-item">
+                        <span class="setup-icon bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-person-check-fill"></i>
+                        </span>
+                        <span class="flex-grow-1">
+                            <span class="d-block fw-semibold">Personal information</span>
+                            <small class="text-muted">Keep your account details up to date</small>
+                        </span>
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
                 </div>
             </div>
             
