@@ -9,6 +9,7 @@ $active_financial = (strpos($current_uri, '/admin/financial/') !== false) ? 'act
 $active_reports = (strpos($current_uri, '/admin/reports/') !== false) ? 'active' : '';
 $active_subscriptions = (strpos($current_uri, '/admin/subscriptions/') !== false) ? 'active' : '';
 $active_settings = (strpos($current_uri, '/admin/settings/') !== false) ? 'active' : '';
+$active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'active' : '';
 ?>
 
 <!-- Mobile backdrop for sidebar -->
@@ -151,6 +152,29 @@ $active_settings = (strpos($current_uri, '/admin/settings/') !== false) ? 'activ
                 </a>
             </li>
             
+            <!-- Contact Messages -->
+            <li class="nav-item">
+                <a class="nav-link <?php echo $active_messages; ?>"
+                href="<?php echo BASE_URL; ?>/admin/contacts/manage-contacts.php">
+                    <i class="bi bi-envelope me-2"></i>
+                    <span>Messages</span>
+
+                    <?php
+                    $unread_messages = $db->fetchOne(
+                        "SELECT COUNT(*) AS count
+                        FROM contacts
+                        WHERE status = 0"
+                    );
+
+                    if ($unread_messages && $unread_messages['count'] > 0):
+                    ?>
+                        <span class="badge bg-danger float-end mt-1">
+                            <?php echo $unread_messages['count']; ?>
+                        </span>
+                    <?php endif; ?>
+                </a>
+            </li>
+
             <!-- Financial Management -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_financial; ?>" 

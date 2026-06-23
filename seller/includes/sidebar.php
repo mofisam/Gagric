@@ -97,7 +97,7 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
             <!-- Dashboard -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_dashboard; ?>" 
-                   href="<?php echo BASE_URL; ?>/seller/dashboard.php">
+                   href="<?php echo BASE_URL; ?>/seller/dashboard">
                     <i class="bi bi-speedometer2 me-2"></i>
                     <span>Dashboard</span>
                     <?php if($seller_stats['today_orders'] > 0): ?>
@@ -122,21 +122,21 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
                     <ul class="nav flex-column sub-menu ms-3">
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/products/manage-products.php">
+                               href="<?php echo BASE_URL; ?>/seller/products/manage-products">
                                 <i class="bi bi-grid me-1"></i>
                                 All Products
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/products/add-product.php">
+                               href="<?php echo BASE_URL; ?>/seller/products/add-product">
                                 <i class="bi bi-plus-circle me-1"></i>
                                 Add New Product
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/products/product-approvals.php">
+                               href="<?php echo BASE_URL; ?>/seller/products/product-approvals">
                                 <i class="bi bi-clock-history me-1"></i>
                                 Pending Approval
                                 <?php if($seller_stats['pending_products'] > 0): ?>
@@ -164,14 +164,14 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
                     <ul class="nav flex-column sub-menu ms-3">
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/orders/manage-orders.php">
+                               href="<?php echo BASE_URL; ?>/seller/orders/manage-orders">
                                 <i class="bi bi-list-ul me-1"></i>
                                 All Orders
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/orders/pending-orders.php">
+                               href="<?php echo BASE_URL; ?>/seller/orders/pending-orders">
                                 <i class="bi bi-clock me-1"></i>
                                 Pending
                                 <?php if($seller_stats['pending_orders'] > 0): ?>
@@ -183,7 +183,7 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/orders/shipping.php">
+                               href="<?php echo BASE_URL; ?>/seller/orders/shipping">
                                 <i class="bi bi-truck me-1"></i>
                                 Shipping
                             </a>
@@ -206,14 +206,14 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
                     <ul class="nav flex-column sub-menu ms-3">
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/inventory/stock-management.php">
+                               href="<?php echo BASE_URL; ?>/seller/inventory/stock-management">
                                 <i class="bi bi-boxes me-1"></i>
                                 Stock Management
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/inventory/low-stock-alerts.php">
+                               href="<?php echo BASE_URL; ?>/seller/inventory/low-stock-alerts">
                                 <i class="bi bi-exclamation-triangle me-1"></i>
                                 Low Stock Alerts
                                 <?php if($seller_stats['low_stock_count'] > 0): ?>
@@ -241,14 +241,14 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
                     <ul class="nav flex-column sub-menu ms-3">
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/finances/earnings.php">
+                               href="<?php echo BASE_URL; ?>/seller/finances/earnings">
                                 <i class="bi bi-cash-stack me-1"></i>
                                 Earnings
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/finances/payouts.php">
+                               href="<?php echo BASE_URL; ?>/seller/finances/payouts">
                                 <i class="bi bi-bank me-1"></i>
                                 Payouts
                             </a>
@@ -271,14 +271,14 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
                     <ul class="nav flex-column sub-menu ms-3">
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/analytics/sales-analytics.php">
+                               href="<?php echo BASE_URL; ?>/seller/analytics/sales-analytics">
                                 <i class="bi bi-bar-chart me-1"></i>
                                 Sales Analytics
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/analytics/performance.php">
+                               href="<?php echo BASE_URL; ?>/seller/analytics/performance">
                                 <i class="bi bi-star me-1"></i>
                                 Performance
                             </a>
@@ -301,14 +301,14 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
                     <ul class="nav flex-column sub-menu ms-3">
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/store/profile.php">
+                               href="<?php echo BASE_URL; ?>/seller/store/profile">
                                 <i class="bi bi-building me-1"></i>
                                 Store Profile
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" 
-                               href="<?php echo BASE_URL; ?>/seller/finances/bank-details.php">
+                               href="<?php echo BASE_URL; ?>/seller/finances/bank-details">
                                 <i class="bi bi-bank me-1"></i>
                                 Bank Details
                             </a>
@@ -324,17 +324,17 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
                 <i class="bi bi-lightning-charge me-1"></i> Quick Actions
             </h6>
             <div class="d-grid gap-2 px-3">
-                <a href="<?php echo BASE_URL; ?>/seller/products/add-product.php" 
+                <a href="<?php echo BASE_URL; ?>/seller/products/add-product" 
                    class="btn btn-success quick-action-btn">
                     <i class="bi bi-plus-circle me-2"></i>
                     Add New Product
                 </a>
-                <a href="<?php echo BASE_URL; ?>/seller/orders/shipping.php" 
+                <a href="<?php echo BASE_URL; ?>/seller/orders/shipping" 
                    class="btn btn-primary quick-action-btn">
                     <i class="bi bi-truck me-2"></i>
                     Process Shipments
                 </a>
-                <a href="<?php echo BASE_URL; ?>/seller/inventory/stock-management.php" 
+                <a href="<?php echo BASE_URL; ?>/seller/inventory/stock-management" 
                    class="btn btn-warning quick-action-btn">
                     <i class="bi bi-pencil-square me-2"></i>
                     Update Stock

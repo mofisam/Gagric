@@ -505,25 +505,6 @@ include 'includes/header.php';
     </div>
 </section>
 
-<!-- Newsletter -->
-<section class="newsletter py-5 bg-light">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8 text-center">
-                <h2 class="mb-3">Stay Updated</h2>
-                <p class="text-muted mb-4">Subscribe to our newsletter for updates on new products, seasonal offers, and farming tips.</p>
-                <form class="newsletter-form">
-                    <div class="input-group input-group-lg mb-3">
-                        <input type="email" class="form-control" placeholder="Enter your email address" required>
-                        <button class="btn btn-success" type="submit">Subscribe</button>
-                    </div>
-                    <small class="text-muted">We respect your privacy. Unsubscribe at any time.</small>
-                </form>
-            </div>
-        </div>
-    </div>
-</section>
-
 <style>
 /* Hero Section */
 .hero-section .carousel-item {

@@ -115,8 +115,8 @@ include 'includes/header.php';
                                     <i class="bi bi-telephone text-success me-2"></i>
                                     <strong>Phone:</strong>
                                 </p>
-                                <a href="tel:+2348000000000" class="text-decoration-none">
-                                    +234 800 000 0000
+                                <a href="tel:+2347030419150" class="text-decoration-none">
+                                    +234 703 041 9150
                                 </a>
                             </div>
                         </div>

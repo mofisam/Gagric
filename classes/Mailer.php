@@ -58,6 +58,45 @@ class Mailer {
     }
     
     /**
+     * Send reply email to user from admin
+     * NEW METHOD ADDED HERE
+     */
+    public function sendReplyEmail($to, $name, $subject, $reply_message, $original_message) {
+        try {
+            // Clear previous recipients
+            $this->mail->clearAddresses();
+            $this->mail->clearCCs();
+            $this->mail->clearBCCs();
+            
+            // Recipient (user)
+            $this->mail->addAddress($to, $name);
+            
+            // Subject
+            $this->mail->Subject = 'Re: ' . $subject;
+            
+            // Content
+            $content = $this->getReplyTemplate($name, $reply_message, $original_message);
+            $this->mail->Body = $content;
+            
+            // Plain text alternative
+            $this->mail->AltBody = $this->getPlainTextContent($content);
+            
+            // Send email
+            $result = $this->mail->send();
+            
+            if ($this->debug_mode) {
+                error_log("Reply email sent to: " . $to . " - " . ($result ? 'Success' : 'Failed'));
+            }
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            error_log("Failed to send reply email: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
      * Send contact form email to admin
      */
     public function sendContactToAdmin($contactData) {
@@ -237,6 +276,82 @@ class Mailer {
     }
     
     /**
+     * Send email verification link
+     */
+    public function sendEmailVerification($userEmail, $userName, $verificationLink) {
+        try {
+            $this->mail->clearAddresses();
+            $this->mail->clearCCs();
+            $this->mail->clearBCCs();
+            
+            $this->mail->addAddress($userEmail, $userName);
+            
+            $this->mail->Subject = 'Verify Your Email - Green Agric LTD';
+            
+            $content = $this->getEmailVerificationTemplate($userName, $verificationLink);
+            $this->mail->Body = $content;
+            $this->mail->AltBody = $this->getPlainTextContent($content);
+            
+            return $this->mail->send();
+            
+        } catch (Exception $e) {
+            error_log("Failed to send email verification: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // =============================================
+    // NEW TEMPLATE METHOD FOR REPLY
+    // =============================================
+    
+    /**
+     * Template for admin reply email
+     */
+    private function getReplyTemplate($name, $reply_message, $original_message) {
+        $content = '
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
+                <h2 style="color: #1a2a3a; margin-top: 0;">Hello ' . htmlspecialchars($name) . ',</h2>
+                
+                <p style="color: #333; line-height: 1.6;">Thank you for contacting Green Agric Nigeria. Here is our response to your inquiry:</p>
+                
+                <div style="background: white; padding: 20px; border-left: 4px solid #0d6e3f; margin: 20px 0; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <strong style="color: #0d6e3f; display: block; margin-bottom: 10px;">📝 Our Response:</strong>
+                    <p style="margin: 0; color: #333; line-height: 1.8;">' . nl2br(htmlspecialchars($reply_message)) . '</p>
+                </div>
+                
+                <div style="background: #f1f1f1; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                    <strong style="color: #555; display: block; margin-bottom: 10px;">📨 Your Original Message:</strong>
+                    <p style="margin: 0; color: #555; font-style: italic; line-height: 1.6;">' . nl2br(htmlspecialchars($original_message)) . '</p>
+                </div>
+                
+                <div style="background: #e8f5ee; padding: 15px; border-radius: 4px; margin: 20px 0; border: 1px solid #c3e6d4;">
+                    <p style="margin: 0; color: #0d6e3f; font-size: 14px;">
+                        <strong>💡 Reference:</strong> Please keep this email for your records.
+                    </p>
+                    <p style="margin: 5px 0 0; color: #0d6e3f; font-size: 14px;">
+                        If you have any further questions, simply reply to this email.
+                    </p>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                    <p style="color: #666; font-size: 14px;">Best regards,<br>
+                    <strong style="color: #0d6e3f;">Green Agric Nigeria Support Team</strong><br>
+                    <span style="font-size: 12px; color: #999;">Connecting Nigerian Farmers with Buyers</span></p>
+                </div>
+            </div>
+            
+        </div>
+        ';
+        
+        return str_replace(
+            ['{content}', '{subject}', '{unsubscribe_link}'],
+            [$content, 'Re: Support Inquiry', BASE_URL . '/unsubscribe'],
+            EMAIL_TEMPLATE_HTML
+        );
+    }
+    
+    /**
      * Template for admin contact email
      */
     private function getContactAdminTemplate($contactData) {
@@ -378,8 +493,6 @@ class Mailer {
         return trim($text);
     }
     
-    // ... (other template methods remain similar but updated with proper constants)
-    
     /**
      * Template for order confirmation
      */
@@ -471,31 +584,6 @@ class Mailer {
     }
 
     /**
-     * Send email verification link
-     */
-    public function sendEmailVerification($userEmail, $userName, $verificationLink) {
-        try {
-            $this->mail->clearAddresses();
-            $this->mail->clearCCs();
-            $this->mail->clearBCCs();
-            
-            $this->mail->addAddress($userEmail, $userName);
-            
-            $this->mail->Subject = 'Verify Your Email - Green Agric LTD';
-            
-            $content = $this->getEmailVerificationTemplate($userName, $verificationLink);
-            $this->mail->Body = $content;
-            $this->mail->AltBody = $this->getPlainTextContent($content);
-            
-            return $this->mail->send();
-            
-        } catch (Exception $e) {
-            error_log("Failed to send email verification: " . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
      * Template for email verification
      */
     private function getEmailVerificationTemplate($userName, $verificationLink) {
@@ -539,6 +627,110 @@ class Mailer {
         return str_replace(
             ['{content}', '{subject}', '{unsubscribe_link}'],
             [$content, 'Verify Your Email', BASE_URL . '/unsubscribe'],
+            EMAIL_TEMPLATE_HTML
+        );
+    }
+    
+    /**
+     * Template for payment success
+     */
+    private function getPaymentSuccessTemplate($orderData, $userData, $paymentData) {
+        $content = '
+        <h2>✅ Payment Successful!</h2>
+        <p>Dear ' . htmlspecialchars($userData['full_name']) . ',</p>
+        
+        <p>We are pleased to confirm that your payment has been received successfully.</p>
+        
+        <div class="message-box">
+            <h3>💰 Payment Details</h3>
+            <p><strong>Order Number:</strong> ' . $orderData['order_number'] . '</p>
+            <p><strong>Amount Paid:</strong> ₦' . number_format($paymentData['amount'], 2) . '</p>
+            <p><strong>Payment Method:</strong> ' . $paymentData['payment_method'] . '</p>
+            <p><strong>Transaction ID:</strong> ' . $paymentData['transaction_id'] . '</p>
+            <p><strong>Payment Date:</strong> ' . date('F j, Y \a\t g:i A', strtotime($paymentData['created_at'])) . '</p>
+        </div>
+        
+        <p>Your order is now being processed. You will receive a confirmation when it\'s shipped.</p>
+        
+        <p style="text-align: center; margin: 30px 0;">
+            <a href="' . BASE_URL . '/buyer/orders/view-order.php?id=' . $orderData['id'] . '" class="btn-primary">View Order Details</a>
+        </p>
+        
+        <p>Best regards,<br>
+        <strong>The Green Agric LTD Team</strong></p>
+        ';
+        
+        return str_replace(
+            ['{content}', '{subject}', '{unsubscribe_link}'],
+            [$content, EMAIL_SUBJECT_PAYMENT_SUCCESS, BASE_URL . '/unsubscribe'],
+            EMAIL_TEMPLATE_HTML
+        );
+    }
+    
+    /**
+     * Template for seller new order notification
+     */
+    private function getSellerNewOrderTemplate($orderData, $sellerData, $orderItems) {
+        $items_html = '';
+        foreach ($orderItems as $item) {
+            $items_html .= '
+            <tr>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">' . htmlspecialchars($item['product_name']) . '</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #eee; text-align: center;">' . number_format($item['quantity'], 2) . ' ' . htmlspecialchars($item['unit']) . '</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #eee; text-align: right;">₦' . number_format($item['price'], 2) . '</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #eee; text-align: right;">₦' . number_format($item['total_price'], 2) . '</td>
+            </tr>
+            ';
+        }
+        
+        $content = '
+        <h2>📦 New Order Received!</h2>
+        <p>Dear ' . htmlspecialchars($sellerData['business_name']) . ',</p>
+        
+        <p>You have received a new order from a customer. Please process it as soon as possible.</p>
+        
+        <div class="message-box">
+            <h3>📋 Order Summary</h3>
+            <p><strong>Order Number:</strong> ' . $orderData['order_number'] . '</p>
+            <p><strong>Order Date:</strong> ' . date('F j, Y \a\t g:i A', strtotime($orderData['created_at'])) . '</p>
+            
+            <h4 style="margin-top: 20px;">Items Ordered:</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding: 8px 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Product</th>
+                        <th style="padding: 8px 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Quantity</th>
+                        <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #dee2e6;">Price</th>
+                        <th style="padding: 8px 12px; text-align: right; border-bottom: 2px solid #dee2e6;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ' . $items_html . '
+                </tbody>
+            </table>
+        </div>
+        
+        <p style="text-align: center; margin: 30px 0;">
+            <a href="' . BASE_URL . '/seller/orders/view-order.php?id=' . $orderData['id'] . '" class="btn-primary">View Order Details</a>
+        </p>
+        
+        <div class="info-box">
+            <h3>ℹ️ Next Steps</h3>
+            <ol style="padding-left: 20px;">
+                <li>Review the order details</li>
+                <li>Confirm availability of items</li>
+                <li>Prepare items for shipment</li>
+                <li>Update order status to "Processing"</li>
+            </ol>
+        </div>
+        
+        <p>Best regards,<br>
+        <strong>The Green Agric LTD Team</strong></p>
+        ';
+        
+        return str_replace(
+            ['{content}', '{subject}', '{unsubscribe_link}'],
+            [$content, EMAIL_SUBJECT_SELLER_NEW_ORDER, BASE_URL . '/unsubscribe'],
             EMAIL_TEMPLATE_HTML
         );
     }

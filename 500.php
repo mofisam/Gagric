@@ -56,7 +56,7 @@ include 'includes/header.php';
                             </h5>
                             <p class="mb-0 text-muted">
                                 <i class="bi bi-envelope me-2"></i> support@greenagric.shop<br>
-                                <i class="bi bi-telephone me-2"></i> +234 800 000 0000
+                                <i class="bi bi-telephone me-2"></i> +234 703 041 9150
                             </p>
                         </div>
                     </div>

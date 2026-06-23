@@ -1,7 +1,6 @@
 <?php
 require_once '../../includes/auth.php';
 requireAdmin();
-
 require_once '../../classes/Database.php';
 require_once '../../classes/Product.php';
 

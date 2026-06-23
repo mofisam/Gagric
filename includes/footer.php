@@ -15,7 +15,7 @@
                     <a href="https://www.facebook.com/officialgreenagric" class="text-light me-3"><i class="bi bi-facebook"></i></a>
                     <a href="https://www.linkedin.com/company/greenagric" class="text-light me-3"><i class="bi bi-linkedin"></i></a>
                     <a href="https://www.instagram.com/officialgreenagric" class="text-light me-3"><i class="bi bi-instagram"></i></a>
-                    <a href="https://www.we" class="text-light"><i class="bi bi-whatsapp"></i></a>
+                    <a href="https://wa.me/2347030419150" class="text-light"><i class="bi bi-whatsapp"></i></a>
                 </div>
             </div>
             
@@ -24,8 +24,8 @@
                 <ul class="list-unstyled">
                     <li><a href="<?php echo BASE_URL; ?>/buyer/products/browse.php" class="text-light text-decoration-none">Browse Products</a></li>
                     <li><a href="<?php echo BASE_URL; ?>/auth/register.php" class="text-light text-decoration-none">Create Account</a></li>
-                    <li><a href="#" class="text-light text-decoration-none">How to Buy</a></li>
-                    <li><a href="#" class="text-light text-decoration-none">FAQ</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/how-to-buy" class="text-light text-decoration-none">How to Buy</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/faq" class="text-light text-decoration-none">FAQ</a></li>
                 </ul>
             </div>
             
@@ -33,8 +33,8 @@
                 <h6 class="fw-bold">For Sellers</h6>
                 <ul class="list-unstyled">
                     <li><a href="<?php echo BASE_URL; ?>/auth/register.php" class="text-light text-decoration-none">Sell on AgriMarket</a></li>
-                    <li><a href="#" class="text-light text-decoration-none">Seller Guidelines</a></li>
-                    <li><a href="#" class="text-light text-decoration-none">Pricing</a></li>
+                    <li><a href="seller-guide" class="text-light text-decoration-none">Seller Guidelines</a></li>
+                    <li><a href="" class="text-light text-decoration-none">Pricing</a></li>
                     <li><a href="#" class="text-light text-decoration-none">Support</a></li>
                 </ul>
             </div>
