@@ -1346,7 +1346,7 @@ body {
                         <a href="<?php echo BASE_URL; ?>/contact.php" class="btn-hero-primary">
                             <i class="bi bi-handshake me-2"></i> Partner With Us
                         </a>
-                        <a href="<?php echo BASE_URL; ?>/contact.php?type=seller" class="btn-hero-secondary">
+                        <a href="<?php echo BASE_URL; ?>/auth/register.php" class="btn-hero-secondary">
                             <i class="bi bi-person-plus me-2"></i> Join as Farmer
                         </a>
                     </div>
@@ -1418,7 +1418,7 @@ body {
                     <span class="highlight">Agricultural Supply Chain</span>
                 </h2>
                 <p class="text-lg">
-                    Green Agric Nigeria is a cross‑continental agritech initiative operating in both Nigeria and Canada.
+                    Green Agric Nigeria is a continental agritech initiative operating in Nigeria.
                 </p>
                 <p class="text-muted-lg">
                     Our Nigerian operations focus on aggregation, wholesale distribution, and transparent market access, 
@@ -1428,7 +1428,7 @@ body {
                 <div class="intro-features">
                     <div class="intro-feature">
                         <div class="icon"><i class="bi bi-check-lg"></i></div>
-                        <span class="text">Cross-Continental Expertise</span>
+                        <span class="text">Continental Expertise</span>
                     </div>
                     <div class="intro-feature">
                         <div class="icon"><i class="bi bi-check-lg"></i></div>
@@ -1580,7 +1580,7 @@ body {
 </section>
 
 <!-- ============================================
-   CORE VALUES
+   CORE VALUES 
    ============================================ -->
 <section class="values-section section-padding">
     <div class="container">
@@ -1800,7 +1800,7 @@ body {
                 <a href="<?php echo BASE_URL; ?>/contact.php" class="btn-cta-primary">
                     <i class="bi bi-handshake me-2"></i> Become a Partner
                 </a>
-                <a href="<?php echo BASE_URL; ?>/contact.php?type=seller" class="btn-cta-secondary">
+                <a href="<?php echo BASE_URL; ?>/auth/register.php" class="btn-cta-secondary">
                     <i class="bi bi-person-plus me-2"></i> Join as a Farmer
                 </a>
             </div>

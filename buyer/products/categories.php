@@ -783,7 +783,11 @@ include '../../includes/header.php';
                             <i class="bi <?php echo htmlspecialchars($icon); ?>"></i>
                         </div>
                         <h4><?php echo htmlspecialchars($category['name']); ?></h4>
-                        <div class="product-count"><?php echo (int)$category['product_count']; ?> products</div>
+                        <div class="product-count">
+                            <?php echo $category['product_count'] > 0
+                                ? (int)$category['product_count'] . ' products'
+                                : 'Coming Soon'; ?>
+                        </div>
                         <span class="badge-count">
                             <?php if (!empty($category['children'])): ?>
                                 <?php echo count($category['children']); ?> subcategories
@@ -849,7 +853,11 @@ include '../../includes/header.php';
                                 </div>
                             <?php endif; ?>
                         </div>
-                        <span class="count-badge"><?php echo (int)$category['product_count']; ?></span>
+                        <span class="count-badge <?php echo $category['product_count'] == 0 ? 'bg-warning text-dark' : ''; ?>">
+                            <?php echo $category['product_count'] > 0
+                                ? (int)$category['product_count']
+                                : 'Coming Soon'; ?>
+                        </span>
                     </a>
                 <?php endforeach; ?>
             </div>

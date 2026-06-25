@@ -378,7 +378,7 @@ $page_css = 'dashboard.css';
             <!-- Subscription Info Card -->
             <div class="row g-3 mb-4">
                 <div class="col-12">
-                    <div class="card border-0 shadow-sm bg-gradient-<?php echo $is_trial ? 'info' : ($subscription_status == 'active' ? 'success' : 'secondary'); ?> text-white">
+                    <div class="card border-0 shadow-sm bg-gradient-<?php echo $is_trial ? 'info' : ($subscription_status == 'active' ? 'success' : 'secondary'); ?> ">
                         <div class="card-body">
                             <div class="row align-items-center">
                                 <div class="col-md-8">

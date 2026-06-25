@@ -300,10 +300,6 @@ class Mailer {
         }
     }
     
-    // =============================================
-    // NEW TEMPLATE METHOD FOR REPLY
-    // =============================================
-    
     /**
      * Template for admin reply email
      */
@@ -332,12 +328,6 @@ class Mailer {
                     <p style="margin: 5px 0 0; color: #0d6e3f; font-size: 14px;">
                         If you have any further questions, simply reply to this email.
                     </p>
-                </div>
-                
-                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-                    <p style="color: #666; font-size: 14px;">Best regards,<br>
-                    <strong style="color: #0d6e3f;">Green Agric Nigeria Support Team</strong><br>
-                    <span style="font-size: 12px; color: #999;">Connecting Nigerian Farmers with Buyers</span></p>
                 </div>
             </div>
             

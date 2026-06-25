@@ -225,7 +225,11 @@ include 'includes/header.php';
                                     <i class="bi <?php echo $icon; ?> text-success" style="font-size: 2.5rem;"></i>
                                 </div>
                                 <h6 class="category-name mb-2"><?php echo htmlspecialchars($category['name']); ?></h6>
-                                <span class="badge bg-success rounded-pill"><?php echo $category['product_count']; ?> items</span>
+                                <span class="badge <?php echo $category['product_count'] > 0 ? 'bg-success' : 'bg-warning'; ?> rounded-pill">
+                                    <?php echo $category['product_count'] > 0 
+                                        ? $category['product_count'] . ' items' 
+                                        : 'Coming Soon'; ?>
+                                </span>
                             </div>
                         </div>
                     </a>
