@@ -54,7 +54,7 @@
                 <ul class="list-unstyled text-light">
                     <li><i class="bi bi-envelope me-2"></i> support@greenagric.shop</li>
                     <li><i class="bi bi-telephone me-2"></i> +234 703 041 9150</li>
-                    <li><i class="bi bi-geo-alt me-2"></i> Lagos, Nigeria</li>
+                    <li><i class="bi bi-geo-alt me-2"></i> House 14 Akinyemi Lagos State, Nigeria</li>
                 </ul>
             </div>
         </div>

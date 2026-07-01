@@ -67,10 +67,10 @@ $buyer = $db->fetchOne("SELECT * FROM users WHERE id = ?", [$user_id]);
 // Platform information
 $platform_info = [
     'name' => 'Green Agric Marketplace',
-    'address' => '123 Agriculture Street, Ikeja',
+    'address' => 'House 14 Akinyemi ',
     'city' => 'Lagos',
     'phone' => '+234 703 041 9150',
-    'email' => 'invoices@greenagric.shop',
+    'email' => 'support@greenagric.shop',
     'website' => 'www.green-agric.com',
 ];
 

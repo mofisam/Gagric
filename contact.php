@@ -1003,7 +1003,7 @@ include 'includes/header.php';
                         <i class="bi bi-geo-alt"></i>
                     </div>
                     <h5>Visit Our Office</h5>
-                    <p>123 Agric Street<br>Ikeja, Lagos<br>Nigeria</p>
+                    <p>House 14 Akinyemi <br>Lagos State<br>Nigeria</p>
                     <a href="#" class="contact-link">Get Directions <i class="bi bi-arrow-right"></i></a>
                 </div>
 

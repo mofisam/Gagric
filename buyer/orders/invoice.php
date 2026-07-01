@@ -86,10 +86,10 @@ $payment = $db->fetchOne("SELECT * FROM payments WHERE order_id = ?", [$order_id
 // Platform information
 $platform_info = [
     'name' => 'Green Agric Marketplace',
-    'address' => '123 Agriculture Street, Ikeja',
+    'address' => 'House 14 Akinyemi Lagos State',
     'city' => 'Lagos',
     'phone' => '+234 703 041 9150',
-    'email' => 'invoices@greenagric.shop',
+    'email' => 'support@greenagric.shop',
     'website' => 'www.green-agric.com',
     'registration' => 'RC: 1234567',
     'tax_id' => 'TAX ID: NG-123-456-789'
