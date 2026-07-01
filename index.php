@@ -220,11 +220,11 @@ include 'includes/header.php';
                 <div class="col-md-4 col-6 col-lg-2">
                     <a href="buyer/products/browse.php?category=<?php echo $category['id']; ?>" class="category-card text-decoration-none">
                         <div class="card border-0 shadow-sm h-100 text-center hover-lift">
-                            <div class="card-body p-4">
-                                <div class="category-icon mb-3">
+                            <div class="card-body p-2">
+                                <div class="category-icon mb-0">
                                     <i class="bi <?php echo $icon; ?> text-success" style="font-size: 2.5rem;"></i>
                                 </div>
-                                <h6 class="category-name mb-2"><?php echo htmlspecialchars($category['name']); ?></h6>
+                                <h6 class="category-name mb-0"><?php echo htmlspecialchars($category['name']); ?></h6>
                                 <span class="badge <?php echo $category['product_count'] > 0 ? 'bg-success' : 'bg-warning'; ?> rounded-pill">
                                     <?php echo $category['product_count'] > 0 
                                         ? $category['product_count'] . ' items' 
