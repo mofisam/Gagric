@@ -111,8 +111,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $userName = $first_name . ' ' . $last_name;
                     $email_sent = $mailer->sendEmailVerification($userEmail, $userName, $verificationLink);
 
+                    // Welcome email is sent separately from verification and does not
+                    // block registration if it fails.
+                    try {
+                        $welcome_sent = $mailer->sendWelcomeEmail($userEmail, $userName, $role);
+                    } catch (Exception $e) {
+                        error_log("Welcome Mailer Error: " . $e->getMessage());
+                        $welcome_sent = false;
+                    }
+
                     $_SESSION['registration_email'] = $userEmail;
                     $_SESSION['email_sent'] = $email_sent;
+                    $_SESSION['welcome_email_sent'] = $welcome_sent;
                 } catch (Exception $e) {
                     error_log("Mailer Error: " . $e->getMessage());
                     $_SESSION['registration_email'] = $userEmail;

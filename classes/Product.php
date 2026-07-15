@@ -132,10 +132,20 @@ class Product {
         return false;
     }
 
-    public function getPaginatedProducts($filters = [], $sort = 'newest', $limit = 12, $offset = 0) {
+    public function getPaginatedProducts($filters = [], $sort = 'popular', $limit = 12, $offset = 0) {
         $sql = "SELECT p.*, sp.business_name, 
                        (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_path,
-                       pad.grade, pad.is_organic
+                       pad.grade, pad.is_organic,
+                       (SELECT COUNT(*) 
+                          FROM order_items oi 
+                          JOIN orders o ON oi.order_id = o.id 
+                         WHERE oi.product_id = p.id 
+                           AND o.created_at >= (NOW() - INTERVAL 14 DAY)) as recent_orders_count,
+                       (SELECT COUNT(DISTINCT pv.user_id) 
+                          FROM product_views pv 
+                         WHERE pv.product_id = p.id 
+                           AND pv.user_id IS NOT NULL 
+                           AND pv.viewed_at >= (NOW() - INTERVAL 14 DAY)) as recent_views_count
                 FROM products p 
                 JOIN seller_profiles sp ON p.seller_id = sp.user_id 
                 LEFT JOIN product_agricultural_details pad ON p.id = pad.product_id 
@@ -175,8 +185,13 @@ class Product {
             $sql .= " AND " . implode(" AND ", $conditions);
         }
         
-        // Apply sorting
-        $orderBy = "p.created_at DESC";
+        // Apply sorting.
+        // Default ("popular") ranks products by real recent engagement:
+        // purchases + distinct registered-user views in the last 14 days
+        // (a product with 5 views from the same user still only counts as 1 view).
+        // Products with no recent engagement simply fall back to newest-first.
+        $popularityOrder = "(recent_orders_count + recent_views_count) DESC, p.created_at DESC";
+        $orderBy = $popularityOrder;
         switch ($sort) {
             case 'price_low':
                 $orderBy = "p.price_per_unit ASC";
@@ -184,9 +199,12 @@ class Product {
             case 'price_high':
                 $orderBy = "p.price_per_unit DESC";
                 break;
-            case 'popular':
-                // You might want to join with product_views or order_items
+            case 'newest':
                 $orderBy = "p.created_at DESC";
+                break;
+            case 'popular':
+            default:
+                $orderBy = $popularityOrder;
                 break;
         }
         

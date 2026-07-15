@@ -273,7 +273,7 @@ include '../../includes/header.php';
                             <h2 class="text-success mb-0 me-3" id="unitPriceDisplay"><?php echo formatCurrency($product_data['price_per_unit']); ?></h2>
                             <small class="text-muted">per <?php echo $product_data['unit']; ?></small>
                             <?php if (!empty($product_data['unit_quantity']) && $product_data['unit_quantity'] != 1): ?>
-                                <small class="text-muted ms-2">(<?php echo number_format($product_data['unit_quantity'], 2); ?> <?php echo $product_data['unit']; ?> per unit)</small>
+                                <small class="text-muted ms-2">(<?php echo formatQuantity($product_data['unit_quantity']); ?> <?php echo $product_data['unit']; ?> per unit)</small>
                             <?php endif; ?>
                         </div>
                         
@@ -529,7 +529,7 @@ include '../../includes/header.php';
                                     <p class="card-text text-muted small mb-2"><?php echo htmlspecialchars($related['business_name']); ?></p>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <h5 class="text-success mb-0"><?php echo formatCurrency($related['price_per_unit']); ?></h5>
-                                        <small class="text-muted">/<?php echo $related['unit']; ?></small>
+                                        <small class="text-muted">/<?php echo formatQuantity($related['unit_quantity']); ?> <?php echo htmlspecialchars($related['unit']); ?></small>
                                     </div>
                                 </div>
                             </a>

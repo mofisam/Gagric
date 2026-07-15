@@ -59,6 +59,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <strong>Security validation failed.</strong> Please refresh the page and try again.
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>';
+    }
+    // Honeypot: real visitors never see or fill this field, so anything in it
+    // means a bot filled every field it could find. Pretend success silently
+    // rather than telling the bot it was caught.
+    elseif (!empty($_POST['website'])) {
+        error_log("Contact form honeypot triggered from IP: " . $_SERVER['REMOTE_ADDR']);
+        $message = '
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <strong class="fs-5">Thank you for contacting us!</strong> We will get back to you soon.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>';
+    }
+    // Timing trap: a human needs at least a few seconds to read the form and
+    // type a message; bots that submit instantly are almost certainly automated.
+    elseif (!isset($_POST['form_ts']) || (time() - (int)$_POST['form_ts']) < 3) {
+        error_log("Contact form submitted too fast from IP: " . $_SERVER['REMOTE_ADDR']);
+        $message = '
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <strong class="fs-5">Thank you for contacting us!</strong> We will get back to you soon.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>';
+    }
+    // Rate limit: cap how many messages a single IP can submit per hour, regardless
+    // of whether they pass the checks above (catches slower/more careful bots too).
+    elseif ($db->fetchOne(
+        "SELECT COUNT(*) as cnt FROM contacts WHERE ip_address = ? AND created_at > (NOW() - INTERVAL 1 HOUR)",
+        [$_SERVER['REMOTE_ADDR']]
+    )['cnt'] >= 5) {
+        $error = '
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Too many messages sent recently.</strong> Please wait a while before sending another message, or email us directly at support@greenagric.shop.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>';
     } else {
         // Sanitize inputs
         $full_name = isset($_POST['full_name']) ? trim(strip_tags($_POST['full_name'])) : '';
@@ -874,6 +908,14 @@ include 'includes/header.php';
 
                 <form method="POST" action="" id="contactForm" novalidate>
                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                    <input type="hidden" name="form_ts" value="<?php echo time(); ?>">
+
+                    <!-- Honeypot field: hidden from real users via CSS, but bots that
+                         auto-fill every field will populate it and get silently rejected. -->
+                    <div class="hp-field" aria-hidden="true">
+                        <label for="website">Website</label>
+                        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                    </div>
                     
                     <?php if (!$is_logged_in): ?>
                         <div class="form-group">

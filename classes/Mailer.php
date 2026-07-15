@@ -44,7 +44,19 @@ class Mailer {
             // Sender settings
             $this->mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
             $this->mail->isHTML(true);
-            
+
+            // Envelope sender (Return-Path/bounce address) must match the From domain
+            // for SPF alignment - a mismatch here is one of the most common reasons
+            // legitimate transactional mail gets flagged as spam.
+            $this->mail->Sender = SMTP_FROM_EMAIL;
+
+            // A unique, domain-matched Message-ID and identifying X-Mailer header
+            // make the message look like normal transactional mail rather than
+            // anonymous/bulk mail to spam filters.
+            $fromDomain = substr(strrchr(SMTP_FROM_EMAIL, "@"), 1) ?: 'greenagric.shop';
+            $this->mail->MessageID = '<' . bin2hex(random_bytes(16)) . '@' . $fromDomain . '>';
+            $this->mail->XMailer = 'Green Agric Mailer';
+
             // Set charset
             $this->mail->CharSet = 'UTF-8';
             
@@ -296,6 +308,36 @@ class Mailer {
             
         } catch (Exception $e) {
             error_log("Failed to send email verification: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Send welcome email to a newly registered user.
+     * Sent alongside (not instead of) the verification email.
+     */
+    public function sendWelcomeEmail($userEmail, $userName, $role = 'buyer') {
+        try {
+            $this->mail->clearAddresses();
+            $this->mail->clearCCs();
+            $this->mail->clearBCCs();
+
+            $this->mail->addAddress($userEmail, $userName);
+
+            $this->mail->Subject = 'Welcome to Green Agric, ' . $userName . '!';
+
+            $content = $this->getWelcomeTemplate($userName, $role);
+            $this->mail->Body = $content;
+            $this->mail->AltBody = $this->getPlainTextContent($content);
+
+            $result = $this->mail->send();
+
+            error_log("Welcome email to " . $userEmail . ": " . ($result ? 'SENT' : 'FAILED (no exception)'));
+
+            return $result;
+
+        } catch (Exception $e) {
+            error_log("Failed to send welcome email to " . $userEmail . ": " . $e->getMessage());
             return false;
         }
     }
@@ -617,6 +659,53 @@ class Mailer {
         return str_replace(
             ['{content}', '{subject}', '{unsubscribe_link}'],
             [$content, 'Verify Your Email', BASE_URL . '/unsubscribe'],
+            EMAIL_TEMPLATE_HTML
+        );
+    }
+
+    /**
+     * Template for the welcome email (sent alongside the verification email)
+     */
+    private function getWelcomeTemplate($userName, $role = 'buyer') {
+        if ($role === 'seller') {
+            $roleContent = '
+            <p>As a seller, once your account and products are approved, you\'ll be able to:</p>
+            <ul style="padding-left: 20px;">
+                <li>List your crops, livestock, poultry, dairy, equipment, or farm inputs</li>
+                <li>Manage orders and track your sales</li>
+                <li>Receive payouts directly to your verified bank account</li>
+            </ul>';
+        } else {
+            $roleContent = '
+            <p>As a buyer, you can now:</p>
+            <ul style="padding-left: 20px;">
+                <li>Browse quality agricultural produce from verified sellers across Nigeria</li>
+                <li>Save favourites to your wishlist</li>
+                <li>Track your orders from purchase to delivery</li>
+            </ul>';
+        }
+
+        $content = '
+        <h2>🌱 Welcome to Green Agric!</h2>
+        <p>Dear <strong>' . htmlspecialchars($userName) . '</strong>,</p>
+
+        <p>Thank you for joining Green Agric — we\'re glad to have you as part of our community connecting Nigerian farmers and buyers directly.</p>
+
+        <div class="highlight">
+            ' . $roleContent . '
+        </div>
+
+        <p>We also just sent you a separate email to verify your address — please confirm it to unlock full access to your account.</p>
+
+        <p>If you ever have questions, our support team is one message away.</p>
+
+        <p>Best regards,<br>
+        <strong>The Green Agric Team</strong></p>
+        ';
+
+        return str_replace(
+            ['{content}', '{subject}', '{unsubscribe_link}'],
+            [$content, 'Welcome to Green Agric', BASE_URL . '/unsubscribe'],
             EMAIL_TEMPLATE_HTML
         );
     }

@@ -11,7 +11,7 @@ $product = new Product($db);
 // Get filters
 $category_id = $_GET['category'] ?? '';
 $search = $_GET['search'] ?? '';
-$sort = $_GET['sort'] ?? 'newest';
+$sort = $_GET['sort'] ?? 'popular';
 $page = max(1, $_GET['page'] ?? 1);
 $organic = isset($_GET['organic']) ? 1 : 0;
 $min_price = $_GET['min_price'] ?? '';
@@ -86,10 +86,10 @@ include '../../includes/header.php';
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <select class="form-select form-select-sm" style="width: auto;" id="sortSelect" onchange="updateSort(this.value)">
+                                <option value="popular" <?php echo $sort == 'popular' ? 'selected' : ''; ?>>Most Popular</option>
                                 <option value="newest" <?php echo $sort == 'newest' ? 'selected' : ''; ?>>Newest First</option>
                                 <option value="price_low" <?php echo $sort == 'price_low' ? 'selected' : ''; ?>>Price: Low to High</option>
                                 <option value="price_high" <?php echo $sort == 'price_high' ? 'selected' : ''; ?>>Price: High to Low</option>
-                                <option value="popular" <?php echo $sort == 'popular' ? 'selected' : ''; ?>>Most Popular</option>
                             </select>
                         </div>
                     </div>
@@ -208,7 +208,7 @@ include '../../includes/header.php';
                                         <h5 class="text-success mb-0" style="font-size: 1.1rem;">
                                             ₦<?php echo number_format($prod['price_per_unit']); ?>
                                         </h5>
-                                        <small class="text-muted">/<?php echo $prod['unit']; ?></small>
+                                        <small class="text-muted">/<?php echo formatQuantity($prod['unit_quantity']); ?> <?php echo htmlspecialchars($prod['unit']); ?></small>
                                     </div>
                                     
                                     <!-- Tags -->

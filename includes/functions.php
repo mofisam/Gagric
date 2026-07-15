@@ -11,6 +11,54 @@ function formatCurrency($amount) {
 }
 
 /**
+ * Render a star-rating HTML snippet from real avg_rating / review_count values
+ * (e.g. from the seller_ratings table), instead of a hardcoded placeholder rating.
+ * Returns "No reviews yet" when there is no rating data.
+ */
+function renderStarRating($avg_rating, $review_count = 0) {
+    $review_count = (int) $review_count;
+
+    if ($review_count <= 0 || $avg_rating === null) {
+        return '<div class="product-rating text-muted small">'
+            . '<i class="bi bi-star"></i> No reviews yet'
+            . '</div>';
+    }
+
+    $avg_rating = (float) $avg_rating;
+    $full_stars = (int) floor($avg_rating);
+    $has_half = ($avg_rating - $full_stars) >= 0.25 && ($avg_rating - $full_stars) < 0.75;
+    if (($avg_rating - $full_stars) >= 0.75) {
+        $full_stars++;
+        $has_half = false;
+    }
+    $empty_stars = 5 - $full_stars - ($has_half ? 1 : 0);
+
+    $html = '<div class="product-rating">';
+    $html .= str_repeat('<i class="bi bi-star-fill"></i>', max(0, $full_stars));
+    if ($has_half) {
+        $html .= '<i class="bi bi-star-half"></i>';
+    }
+    $html .= str_repeat('<i class="bi bi-star"></i>', max(0, $empty_stars));
+    $html .= ' <small class="text-muted">' . number_format($avg_rating, 1)
+        . ' (' . $review_count . ')</small>';
+    $html .= '</div>';
+
+    return $html;
+}
+
+/**
+ * Format a decimal quantity for display: "1.00" -> "1", "2.00" -> "2",
+ * but "2.01", "1.50", etc. are left with their decimal places intact.
+ */
+function formatQuantity($value) {
+    $formatted = number_format((float) $value, 2, '.', '');
+    if (substr($formatted, -3) === '.00') {
+        return substr($formatted, 0, -3);
+    }
+    return $formatted;
+}
+
+/**
  * Format date in a readable way
  */
 function formatDate($date, $format = 'M j, Y') {

@@ -81,3 +81,14 @@
         margin-bottom: 1.5rem;
     }
 }
+
+.hp-field {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+    height: 0;
+    width: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}

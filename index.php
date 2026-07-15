@@ -13,7 +13,9 @@ $db = new Database();
 // Get featured products
 $featured_products = $db->fetchAll("
     SELECT p.*, sp.business_name, c.name as category_name,
-           (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_path
+           (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_path,
+           (SELECT AVG(rating) FROM seller_ratings WHERE seller_id = p.seller_id) as avg_rating,
+           (SELECT COUNT(*) FROM seller_ratings WHERE seller_id = p.seller_id) as review_count
     FROM products p 
     JOIN seller_profiles sp ON p.seller_id = sp.user_id 
     JOIN categories c ON p.category_id = c.id 
@@ -25,7 +27,9 @@ $featured_products = $db->fetchAll("
 // Get best selling products (by order count)
 $best_selling = $db->fetchAll("
     SELECT p.*, sp.business_name, COUNT(oi.id) as sales_count,
-           (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_path
+           (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_path,
+           (SELECT AVG(rating) FROM seller_ratings WHERE seller_id = p.seller_id) as avg_rating,
+           (SELECT COUNT(*) FROM seller_ratings WHERE seller_id = p.seller_id) as review_count
     FROM products p 
     JOIN seller_profiles sp ON p.seller_id = sp.user_id 
     LEFT JOIN order_items oi ON p.id = oi.product_id 
@@ -38,7 +42,9 @@ $best_selling = $db->fetchAll("
 // Get new arrivals
 $new_arrivals = $db->fetchAll("
     SELECT p.*, sp.business_name, c.name as category_name,
-           (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_path
+           (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_path,
+           (SELECT AVG(rating) FROM seller_ratings WHERE seller_id = p.seller_id) as avg_rating,
+           (SELECT COUNT(*) FROM seller_ratings WHERE seller_id = p.seller_id) as review_count
     FROM products p 
     JOIN seller_profiles sp ON p.seller_id = sp.user_id 
     JOIN categories c ON p.category_id = c.id 
@@ -61,7 +67,9 @@ $categories = $db->fetchAll("
 // Get organic products
 $organic_products = $db->fetchAll("
     SELECT p.*, sp.business_name,
-           (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_path
+           (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_path,
+           (SELECT AVG(rating) FROM seller_ratings WHERE seller_id = p.seller_id) as avg_rating,
+           (SELECT COUNT(*) FROM seller_ratings WHERE seller_id = p.seller_id) as review_count
     FROM products p 
     JOIN seller_profiles sp ON p.seller_id = sp.user_id 
     JOIN product_agricultural_details pad ON p.id = pad.product_id 
@@ -225,11 +233,6 @@ include 'includes/header.php';
                                     <i class="bi <?php echo $icon; ?> text-success" style="font-size: 2.5rem;"></i>
                                 </div>
                                 <h6 class="category-name mb-0"><?php echo htmlspecialchars($category['name']); ?></h6>
-                                <span class="badge <?php echo $category['product_count'] > 0 ? 'bg-success' : 'bg-warning'; ?> rounded-pill">
-                                    <?php echo $category['product_count'] > 0 
-                                        ? $category['product_count'] . ' items' 
-                                        : 'Coming Soon'; ?>
-                                </span>
                             </div>
                         </div>
                     </a>
@@ -291,21 +294,28 @@ include 'includes/header.php';
                                 <div class="product-seller mb-2">
                                     <small class="text-muted">By <?php echo htmlspecialchars($product['business_name']); ?></small>
                                 </div>
+                                <?php echo renderStarRating($product['avg_rating'], $product['review_count']); ?>
                                 <div class="product-price mb-3">
                                     <h5 class="text-success mb-0">
                                         <?php echo formatCurrency($product['price_per_unit']); ?>
-                                        <small class="text-muted"> per <?php echo $product['unit']; ?></small>
+                                        <small class="text-muted"> per <?php echo formatQuantity($product['unit_quantity']); ?> <?php echo htmlspecialchars($product['unit']); ?></small>
                                     </h5>
                                 </div>
                                 <div class="d-grid">
-                                    <button class="btn btn-success add-to-cart-btn" 
-                                            data-product-id="<?php echo $product['id']; ?>"
-                                            data-product-name="<?php echo htmlspecialchars($product['name']); ?>"
-                                            data-product-price="<?php echo $product['price_per_unit']; ?>"
-                                            data-product-unit="<?php echo $product['unit']; ?>"
-                                            data-stock="<?php echo $product['stock_quantity']; ?>">
-                                        <i class="bi bi-cart-plus me-2"></i> Add to Cart
-                                    </button>
+                                    <?php if ($product['stock_quantity'] > 0): ?>
+                                        <button class="btn btn-success add-to-cart-btn" 
+                                                data-product-id="<?php echo $product['id']; ?>"
+                                                data-product-name="<?php echo htmlspecialchars($product['name']); ?>"
+                                                data-product-price="<?php echo $product['price_per_unit']; ?>"
+                                                data-product-unit="<?php echo $product['unit']; ?>"
+                                                data-stock="<?php echo $product['stock_quantity']; ?>">
+                                            <i class="bi bi-cart-plus me-2"></i> Add to Cart
+                                        </button>
+                                    <?php else: ?>
+                                        <button class="btn btn-secondary" disabled>
+                                            <i class="bi bi-x-circle me-2"></i> Out of Stock
+                                        </button>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -347,19 +357,26 @@ include 'includes/header.php';
                                     <?php echo htmlspecialchars($product['name']); ?>
                                 </a>
                             </h6>
+                            <?php echo renderStarRating($product['avg_rating'], $product['review_count']); ?>
                             <div class="product-price mb-3">
                                 <h5 class="text-success mb-0"><?php echo formatCurrency($product['price_per_unit']); ?></h5>
-                                <small class="text-muted">per <?php echo $product['unit']; ?></small>
+                                <small class="text-muted">per <?php echo formatQuantity($product['unit_quantity']); ?> <?php echo htmlspecialchars($product['unit']); ?></small>
                             </div>
                             <div class="d-grid">
-                                <button class="btn btn-outline-success add-to-cart-btn" 
-                                        data-product-id="<?php echo $product['id']; ?>"
-                                        data-product-name="<?php echo htmlspecialchars($product['name']); ?>"
-                                        data-product-price="<?php echo $product['price_per_unit']; ?>"
-                                        data-product-unit="<?php echo $product['unit']; ?>"
-                                        data-stock="<?php echo $product['stock_quantity']; ?>">
-                                    <i class="bi bi-cart-plus me-2"></i> Add to Cart
-                                </button>
+                                <?php if ($product['stock_quantity'] > 0): ?>
+                                    <button class="btn btn-outline-success add-to-cart-btn" 
+                                            data-product-id="<?php echo $product['id']; ?>"
+                                            data-product-name="<?php echo htmlspecialchars($product['name']); ?>"
+                                            data-product-price="<?php echo $product['price_per_unit']; ?>"
+                                            data-product-unit="<?php echo $product['unit']; ?>"
+                                            data-stock="<?php echo $product['stock_quantity']; ?>">
+                                        <i class="bi bi-cart-plus me-2"></i> Add to Cart
+                                    </button>
+                                <?php else: ?>
+                                    <button class="btn btn-secondary" disabled>
+                                        <i class="bi bi-x-circle me-2"></i> Out of Stock
+                                    </button>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -404,25 +421,24 @@ include 'includes/header.php';
                                 </h6>
                                 <div class="product-price mb-3">
                                     <h5 class="text-success mb-0"><?php echo formatCurrency($product['price_per_unit']); ?></h5>
-                                    <small class="text-muted">per <?php echo $product['unit']; ?></small>
+                                    <small class="text-muted">per <?php echo formatQuantity($product['unit_quantity']); ?> <?php echo htmlspecialchars($product['unit']); ?></small>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <span class="text-warning">
-                                        <i class="bi bi-star-fill"></i>
-                                        <i class="bi bi-star-fill"></i>
-                                        <i class="bi bi-star-fill"></i>
-                                        <i class="bi bi-star-fill"></i>
-                                        <i class="bi bi-star-half"></i>
-                                        <small class="text-muted ms-1">(<?php echo $product['sales_count']; ?>)</small>
-                                    </span>
-                                    <button class="btn btn-sm btn-outline-success add-to-cart-btn" 
-                                            data-product-id="<?php echo $product['id']; ?>"
-                                            data-product-name="<?php echo htmlspecialchars($product['name']); ?>"
-                                            data-product-price="<?php echo $product['price_per_unit']; ?>"
-                                            data-product-unit="<?php echo $product['unit']; ?>"
-                                            data-stock="<?php echo $product['stock_quantity']; ?>">
-                                        <i class="bi bi-cart-plus"></i>
-                                    </button>
+                                    <?php echo renderStarRating($product['avg_rating'], $product['review_count']); ?>
+                                    <?php if ($product['stock_quantity'] > 0): ?>
+                                        <button class="btn btn-sm btn-outline-success add-to-cart-btn" 
+                                                data-product-id="<?php echo $product['id']; ?>"
+                                                data-product-name="<?php echo htmlspecialchars($product['name']); ?>"
+                                                data-product-price="<?php echo $product['price_per_unit']; ?>"
+                                                data-product-unit="<?php echo $product['unit']; ?>"
+                                                data-stock="<?php echo $product['stock_quantity']; ?>">
+                                            <i class="bi bi-cart-plus"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        <button class="btn btn-sm btn-secondary" disabled>
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -459,19 +475,26 @@ include 'includes/header.php';
                                         <?php echo htmlspecialchars($product['name']); ?>
                                     </a>
                                 </h6>
+                                <?php echo renderStarRating($product['avg_rating'], $product['review_count']); ?>
                                 <div class="product-price mb-3">
                                     <h5 class="text-success mb-0"><?php echo formatCurrency($product['price_per_unit']); ?></h5>
-                                    <small class="text-muted">per <?php echo $product['unit']; ?></small>
+                                    <small class="text-muted">per <?php echo formatQuantity($product['unit_quantity']); ?> <?php echo htmlspecialchars($product['unit']); ?></small>
                                 </div>
                                 <div class="d-grid">
-                                    <button class="btn btn-outline-success add-to-cart-btn" 
-                                            data-product-id="<?php echo $product['id']; ?>"
-                                            data-product-name="<?php echo htmlspecialchars($product['name']); ?>"
-                                            data-product-price="<?php echo $product['price_per_unit']; ?>"
-                                            data-product-unit="<?php echo $product['unit']; ?>"
-                                            data-stock="<?php echo $product['stock_quantity']; ?>">
-                                        <i class="bi bi-cart-plus me-2"></i> Add to Cart
-                                    </button>
+                                    <?php if ($product['stock_quantity'] > 0): ?>
+                                        <button class="btn btn-outline-success add-to-cart-btn" 
+                                                data-product-id="<?php echo $product['id']; ?>"
+                                                data-product-name="<?php echo htmlspecialchars($product['name']); ?>"
+                                                data-product-price="<?php echo $product['price_per_unit']; ?>"
+                                                data-product-unit="<?php echo $product['unit']; ?>"
+                                                data-stock="<?php echo $product['stock_quantity']; ?>">
+                                            <i class="bi bi-cart-plus me-2"></i> Add to Cart
+                                        </button>
+                                    <?php else: ?>
+                                        <button class="btn btn-secondary" disabled>
+                                            <i class="bi bi-x-circle me-2"></i> Out of Stock
+                                        </button>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
