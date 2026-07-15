@@ -68,6 +68,20 @@ $related_products = $db->fetchAll("
     LIMIT 4
 ", [$product_data['category_id'], $product_id]);
 
+// Get reviews for this product
+$product_reviews = $db->fetchAll("
+    SELECT r.*, u.first_name, u.last_name
+    FROM reviews r
+    JOIN users u ON r.user_id = u.id
+    WHERE r.product_id = ? AND r.is_approved = 1
+    ORDER BY r.created_at DESC
+", [$product_id]);
+
+$review_count = count($product_reviews);
+$avg_product_rating = $review_count > 0
+    ? array_sum(array_column($product_reviews, 'rating')) / $review_count
+    : null;
+
 // Check if product is in wishlist (for logged-in users)
 $in_wishlist = false;
 if (isLoggedIn()) {
@@ -513,6 +527,44 @@ include '../../includes/header.php';
         </div>
     </div>
     
+    <!-- Product Reviews -->
+    <div class="product-reviews mt-5">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <h3 class="mb-0">Reviews</h3>
+            <?php echo renderStarRating($avg_product_rating, $review_count); ?>
+        </div>
+
+        <?php if ($review_count > 0): ?>
+            <div class="review-list">
+                <?php foreach ($product_reviews as $review): ?>
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <strong><?php echo htmlspecialchars($review['first_name'] . ' ' . substr($review['last_name'], 0, 1) . '.'); ?></strong>
+                                    <?php if (!empty($review['is_verified_purchase'])): ?>
+                                        <span class="badge bg-success ms-1"><i class="bi bi-patch-check-fill me-1"></i> Verified Purchase</span>
+                                    <?php endif; ?>
+                                </div>
+                                <small class="text-muted"><?php echo formatDate($review['created_at']); ?></small>
+                            </div>
+                            <div class="mb-2">
+                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                    <i class="bi <?php echo $i <= $review['rating'] ? 'bi-star-fill text-warning' : 'bi-star text-muted'; ?>"></i>
+                                <?php endfor; ?>
+                            </div>
+                            <?php if (!empty($review['comment'])): ?>
+                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($review['comment'])); ?></p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <p class="text-muted">No reviews yet for this product.</p>
+        <?php endif; ?>
+    </div>
+
     <!-- Related Products -->
     <?php if (!empty($related_products)): ?>
         <div class="related-products mt-5">

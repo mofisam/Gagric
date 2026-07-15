@@ -25,12 +25,9 @@ if ($order_data['status'] !== 'delivered') {
     exit;
 }
 
-// Get every item in this order, grouped by seller, so the buyer reviews each
-// seller they bought from in this order (their review also counts as the
-// review for every product bought from that seller in this order - this
-// matches how reviews are already read elsewhere in the app, e.g.
-// seller/products/view-product.php, which pulls product reviews from
-// seller_ratings via order_items).
+// Get every item in this order, grouped by seller. The buyer reviews:
+//   - each PRODUCT individually (rating + comment -> `reviews` table)
+//   - each SELLER once per order (rating + review -> `seller_ratings` table)
 $order_items = $db->fetchAll("
     SELECT oi.id as order_item_id, oi.product_id, oi.product_name, oi.seller_id,
            sp.business_name,
@@ -61,20 +58,29 @@ foreach ($order_items as $item) {
     $sellers[$sid]['items'][] = $item;
 }
 
-// Find which sellers in this order the buyer has already reviewed
-$existing_reviews = $db->fetchAll("
+// Existing seller-level reviews for this order
+$existing_seller_reviews = $db->fetchAll("
     SELECT seller_id, rating, review, created_at
     FROM seller_ratings
     WHERE order_id = ? AND buyer_id = ?
 ", [$order_id, $user_id]);
+$seller_reviewed_map = [];
+foreach ($existing_seller_reviews as $r) {
+    $seller_reviewed_map[$r['seller_id']] = $r;
+}
 
-$reviewed_map = [];
-foreach ($existing_reviews as $r) {
-    $reviewed_map[$r['seller_id']] = $r;
+// Existing product-level reviews for this order
+$existing_product_reviews = $db->fetchAll("
+    SELECT product_id, rating, comment, created_at
+    FROM reviews
+    WHERE order_id = ? AND user_id = ?
+", [$order_id, $user_id]);
+$product_reviewed_map = [];
+foreach ($existing_product_reviews as $r) {
+    $product_reviewed_map[$r['product_id']] = $r;
 }
 
 $errors = [];
-$success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
@@ -82,24 +88,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $submitted_any = false;
 
-        foreach ($sellers as $sid => $sellerData) {
-            // Skip sellers already reviewed for this order - one review per seller per order.
-            if (isset($reviewed_map[$sid])) {
+        // --- Product reviews ---
+        foreach ($order_items as $item) {
+            $pid = $item['product_id'];
+
+            if (isset($product_reviewed_map[$pid])) {
+                continue; // already reviewed this product for this order
+            }
+
+            $rating_key = 'product_rating_' . $pid;
+            if (empty($_POST[$rating_key])) {
+                continue; // buyer chose not to review this product right now
+            }
+
+            $rating = (int) $_POST[$rating_key];
+            $comment = trim($_POST['product_comment_' . $pid] ?? '');
+
+            if ($rating < 1 || $rating > 5) {
+                $errors[] = 'Please select a rating between 1 and 5 stars for ' . htmlspecialchars($item['product_name']) . '.';
                 continue;
             }
 
-            $rating_key = 'rating_' . $sid;
-            $review_key = 'review_' . $sid;
+            $db->insert('reviews', [
+                'user_id' => $user_id,
+                'product_id' => $pid,
+                'order_id' => $order_id,
+                'rating' => $rating,
+                'comment' => $comment !== '' ? $comment : null,
+                'is_verified_purchase' => 1,
+            ]);
 
-            // A seller block only needs to be processed if the buyer actually
-            // gave it a star rating - other sellers in the same order can be
-            // reviewed later without forcing all of them at once.
+            $submitted_any = true;
+        }
+
+        // --- Seller reviews ---
+        foreach ($sellers as $sid => $sellerData) {
+            if (isset($seller_reviewed_map[$sid])) {
+                continue; // already reviewed this seller for this order
+            }
+
+            $rating_key = 'seller_rating_' . $sid;
             if (empty($_POST[$rating_key])) {
                 continue;
             }
 
             $rating = (int) $_POST[$rating_key];
-            $reviewText = trim($_POST[$review_key] ?? '');
+            $reviewText = trim($_POST['seller_review_' . $sid] ?? '');
 
             if ($rating < 1 || $rating > 5) {
                 $errors[] = 'Please select a rating between 1 and 5 stars for ' . htmlspecialchars($sellerData['business_name']) . '.';
@@ -158,67 +192,105 @@ include '../../includes/header.php';
 
         <?php foreach ($sellers as $sid => $sellerData): ?>
             <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header">
                     <h5 class="mb-0">
                         <i class="bi bi-shop me-2"></i>
                         <?php echo htmlspecialchars($sellerData['business_name']); ?>
                     </h5>
-                    <?php if (isset($reviewed_map[$sid])): ?>
-                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Reviewed</span>
-                    <?php endif; ?>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted mb-3">Products from this seller in this order:</p>
-                    <ul class="list-unstyled mb-4">
-                        <?php foreach ($sellerData['items'] as $item): ?>
-                            <li class="d-flex align-items-center mb-2">
-                                <img src="<?php echo !empty($item['image_path']) ? '../../assets/uploads/products/' . $item['image_path'] : '../../assets/images/placeholder-product.jpg'; ?>"
-                                     alt="<?php echo htmlspecialchars($item['product_name']); ?>"
-                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" class="me-2">
-                                <a href="../products/product-details.php?id=<?php echo $item['product_id']; ?>" class="text-dark text-decoration-none">
+
+                    <!-- Per-product reviews -->
+                    <?php foreach ($sellerData['items'] as $item):
+                        $pid = $item['product_id']; ?>
+                        <div class="d-flex align-items-start mb-3 pb-3 border-bottom">
+                            <img src="<?php echo !empty($item['image_path']) ? '../../assets/uploads/products/' . $item['image_path'] : '../../assets/images/placeholder-product.jpg'; ?>"
+                                 alt="<?php echo htmlspecialchars($item['product_name']); ?>"
+                                 style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" class="me-3 flex-shrink-0">
+                            <div class="flex-grow-1">
+                                <a href="../products/product-details.php?id=<?php echo $pid; ?>" class="text-dark text-decoration-none fw-semibold">
                                     <?php echo htmlspecialchars($item['product_name']); ?>
                                 </a>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
 
-                    <?php if (isset($reviewed_map[$sid])):
-                        $existing = $reviewed_map[$sid]; ?>
-                        <div class="reviewed-block">
-                            <div class="star-display mb-2">
-                                <?php for ($i = 1; $i <= 5; $i++): ?>
-                                    <i class="bi <?php echo $i <= $existing['rating'] ? 'bi-star-fill text-warning' : 'bi-star text-muted'; ?>"></i>
-                                <?php endfor; ?>
-                                <span class="text-muted ms-2"><?php echo formatDate($existing['created_at']); ?></span>
+                                <?php if (isset($product_reviewed_map[$pid])):
+                                    $existing = $product_reviewed_map[$pid]; ?>
+                                    <div class="reviewed-block mt-2">
+                                        <span class="badge bg-success mb-1"><i class="bi bi-check-circle me-1"></i> Reviewed</span>
+                                        <div class="star-display">
+                                            <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                <i class="bi <?php echo $i <= $existing['rating'] ? 'bi-star-fill text-warning' : 'bi-star text-muted'; ?>"></i>
+                                            <?php endfor; ?>
+                                            <span class="text-muted ms-2 small"><?php echo formatDate($existing['created_at']); ?></span>
+                                        </div>
+                                        <?php if (!empty($existing['comment'])): ?>
+                                            <p class="mb-0 mt-1"><?php echo nl2br(htmlspecialchars($existing['comment'])); ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="star-rating star-rating-sm mt-1 mb-2">
+                                        <?php for ($i = 5; $i >= 1; $i--): ?>
+                                            <input type="radio" id="prod_star<?php echo $i . '_' . $pid; ?>" name="product_rating_<?php echo $pid; ?>" value="<?php echo $i; ?>">
+                                            <label for="prod_star<?php echo $i . '_' . $pid; ?>" title="<?php echo $i; ?> star<?php echo $i > 1 ? 's' : ''; ?>"><i class="bi bi-star-fill"></i></label>
+                                        <?php endfor; ?>
+                                    </div>
+                                    <textarea class="form-control" name="product_comment_<?php echo $pid; ?>"
+                                              rows="2" maxlength="1000" placeholder="What did you think of this product?"></textarea>
+                                <?php endif; ?>
                             </div>
-                            <?php if (!empty($existing['review'])): ?>
-                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($existing['review'])); ?></p>
-                            <?php endif; ?>
                         </div>
-                    <?php else: ?>
-                        <label class="form-label fw-semibold d-block">Your Rating</label>
-                        <div class="star-rating mb-3">
-                            <?php for ($i = 5; $i >= 1; $i--): ?>
-                                <input type="radio" id="star<?php echo $i . '_' . $sid; ?>" name="rating_<?php echo $sid; ?>" value="<?php echo $i; ?>">
-                                <label for="star<?php echo $i . '_' . $sid; ?>" title="<?php echo $i; ?> star<?php echo $i > 1 ? 's' : ''; ?>"><i class="bi bi-star-fill"></i></label>
-                            <?php endfor; ?>
-                        </div>
+                    <?php endforeach; ?>
 
-                        <label for="review_<?php echo $sid; ?>" class="form-label fw-semibold">Your Review (optional)</label>
-                        <textarea class="form-control" id="review_<?php echo $sid; ?>" name="review_<?php echo $sid; ?>"
-                                  rows="3" maxlength="1000" placeholder="How was the product quality, packaging, and delivery from this seller?"></textarea>
-                    <?php endif; ?>
+                    <!-- Seller-level review -->
+                    <div class="mt-3">
+                        <h6 class="fw-semibold">Rate this Seller</h6>
+                        <?php if (isset($seller_reviewed_map[$sid])):
+                            $existing = $seller_reviewed_map[$sid]; ?>
+                            <div class="reviewed-block">
+                                <span class="badge bg-success mb-1"><i class="bi bi-check-circle me-1"></i> Reviewed</span>
+                                <div class="star-display">
+                                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                                        <i class="bi <?php echo $i <= $existing['rating'] ? 'bi-star-fill text-warning' : 'bi-star text-muted'; ?>"></i>
+                                    <?php endfor; ?>
+                                    <span class="text-muted ms-2 small"><?php echo formatDate($existing['created_at']); ?></span>
+                                </div>
+                                <?php if (!empty($existing['review'])): ?>
+                                    <p class="mb-0 mt-1"><?php echo nl2br(htmlspecialchars($existing['review'])); ?></p>
+                                <?php endif; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="star-rating mb-2">
+                                <?php for ($i = 5; $i >= 1; $i--): ?>
+                                    <input type="radio" id="seller_star<?php echo $i . '_' . $sid; ?>" name="seller_rating_<?php echo $sid; ?>" value="<?php echo $i; ?>">
+                                    <label for="seller_star<?php echo $i . '_' . $sid; ?>" title="<?php echo $i; ?> star<?php echo $i > 1 ? 's' : ''; ?>"><i class="bi bi-star-fill"></i></label>
+                                <?php endfor; ?>
+                            </div>
+                            <textarea class="form-control" name="seller_review_<?php echo $sid; ?>"
+                                      rows="2" maxlength="1000" placeholder="How was the packaging, delivery, and overall experience with this seller?"></textarea>
+                        <?php endif; ?>
+                    </div>
+
                 </div>
             </div>
         <?php endforeach; ?>
 
-        <?php if (count(array_diff_key($sellers, $reviewed_map)) > 0): ?>
+        <?php
+        $anything_left = false;
+        foreach ($order_items as $item) {
+            if (!isset($product_reviewed_map[$item['product_id']])) { $anything_left = true; break; }
+        }
+        if (!$anything_left) {
+            foreach ($sellers as $sid => $sellerData) {
+                if (!isset($seller_reviewed_map[$sid])) { $anything_left = true; break; }
+            }
+        }
+        ?>
+        <?php if ($anything_left): ?>
             <button type="submit" class="btn btn-success btn-lg">
-                <i class="bi bi-send me-2"></i> Submit Review<?php echo count($sellers) > 1 ? 's' : ''; ?>
+                <i class="bi bi-send me-2"></i> Submit Review
             </button>
         <?php else: ?>
             <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i> You've already reviewed every seller for this order. Thank you!
+                <i class="bi bi-info-circle me-2"></i> You've already reviewed every product and seller for this order. Thank you!
             </div>
         <?php endif; ?>
     </form>
@@ -229,6 +301,9 @@ include '../../includes/header.php';
     display: inline-flex;
     flex-direction: row-reverse;
     font-size: 1.8rem;
+}
+.star-rating-sm {
+    font-size: 1.3rem;
 }
 .star-rating input {
     display: none;
