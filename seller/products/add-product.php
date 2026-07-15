@@ -488,6 +488,7 @@ require_once '../../includes/header.php';
                                                 <option value="bag" <?php echo ($_POST['unit'] ?? '') == 'bag' ? 'selected' : ''; ?>>Bag</option>
                                                 <option value="crate" <?php echo ($_POST['unit'] ?? '') == 'crate' ? 'selected' : ''; ?>>Crate</option>
                                                 <option value="piece" <?php echo ($_POST['unit'] ?? '') == 'piece' ? 'selected' : ''; ?>>Piece</option>
+                                                <option value="piece" <?php echo ($_POST['unit'] ?? '') == 'piece' ? 'selected' : ''; ?>>Piece</option>
                                                 <option value="dozen" <?php echo ($_POST['unit'] ?? '') == 'dozen' ? 'selected' : ''; ?>>Dozen</option>
                                                 <option value="liter" <?php echo ($_POST['unit'] ?? '') == 'liter' ? 'selected' : ''; ?>>Liter (L)</option>
                                             </select>

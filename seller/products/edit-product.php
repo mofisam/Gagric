@@ -468,6 +468,7 @@ $page_css = 'dashboard.css';
                                                 <option value="ton" <?php echo $product['unit'] == 'ton' ? 'selected' : ''; ?>>Ton</option>
                                                 <option value="bag" <?php echo $product['unit'] == 'bag' ? 'selected' : ''; ?>>Bag</option>
                                                 <option value="crate" <?php echo $product['unit'] == 'crate' ? 'selected' : ''; ?>>Crate</option>
+                                                <option value="bunch" <?php echo $product['unit'] == 'bunch' ? 'selected' : ''; ?>>Bunch</option>
                                                 <option value="piece" <?php echo $product['unit'] == 'piece' ? 'selected' : ''; ?>>Piece</option>
                                                 <option value="dozen" <?php echo $product['unit'] == 'dozen' ? 'selected' : ''; ?>>Dozen</option>
                                                 <option value="liter" <?php echo $product['unit'] == 'liter' ? 'selected' : ''; ?>>Liter</option>
