@@ -528,6 +528,7 @@ include '../../includes/header.php';
                                                         <option value="bag" <?php echo $original_product['unit'] == 'bag' ? 'selected' : ''; ?>>Bag</option>
                                                         <option value="crate" <?php echo $original_product['unit'] == 'crate' ? 'selected' : ''; ?>>Crate</option>
                                                         <option value="piece" <?php echo $original_product['unit'] == 'piece' ? 'selected' : ''; ?>>Piece</option>
+                                                        <option value="piece" <?php echo $original_product['unit'] == 'piece' ? 'selected' : ''; ?>>Piece</option>
                                                         <option value="dozen" <?php echo $original_product['unit'] == 'dozen' ? 'selected' : ''; ?>>Dozen</option>
                                                         <option value="liter" <?php echo $original_product['unit'] == 'liter' ? 'selected' : ''; ?>>Liter (L)</option>
                                                     </select>
