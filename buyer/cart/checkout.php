@@ -230,8 +230,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $db->conn->commit();
                 
-                // After commit(), before the header redirect:
-                //echo "<script>localStorage.removeItem('greenagric_cart'); if(typeof cartManager!=='undefined') cartManager.clearCart();</script>";
+                // Clear the client-side cart cache on the page the buyer actually
+                // lands on (payment.php) rather than echoing a <script> tag here -
+                // echoing output before header() breaks the redirect below, and
+                // browsers ignore inline scripts on a page they're about to leave
+                // anyway when a Location header follows immediately after.
+                $_SESSION['clear_cart_storage'] = true;
 
                 $_SESSION['pending_orders'] = $all_order_numbers;
                 $_SESSION['order_count'] = count($created_orders);

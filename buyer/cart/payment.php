@@ -484,6 +484,16 @@ $page_title = "Payment - " . count($orders) . " Order(s)";
 include '../../includes/header.php';
 ?>
 
+<?php if (!empty($_SESSION['clear_cart_storage'])): ?>
+<script>
+    localStorage.removeItem('greenagric_cart');
+    if (typeof cartManager !== 'undefined') { cartManager.clearCart(); }
+</script>
+<?php
+    unset($_SESSION['clear_cart_storage']);
+endif;
+?>
+
 <style>
 .order-card {
     border-left: 4px solid #198754;
