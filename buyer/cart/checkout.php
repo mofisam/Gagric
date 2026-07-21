@@ -231,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->conn->commit();
                 
                 // After commit(), before the header redirect:
-                echo "<script>localStorage.removeItem('greenagric_cart'); if(typeof cartManager!=='undefined') cartManager.clearCart();</script>";
+                //echo "<script>localStorage.removeItem('greenagric_cart'); if(typeof cartManager!=='undefined') cartManager.clearCart();</script>";
 
                 $_SESSION['pending_orders'] = $all_order_numbers;
                 $_SESSION['order_count'] = count($created_orders);
