@@ -16,6 +16,14 @@ $subtotal = 0;
 
 if (isLoggedIn()) {
     $user_id = getCurrentUserId();
+
+    // Check for orders still awaiting payment (e.g. buyer left checkout
+    // before completing payment on Paystack) so we can nudge them back
+    // to finish up instead of starting over.
+    $pending_payment_count = $db->fetchOne(
+        "SELECT COUNT(*) as count FROM orders WHERE buyer_id = ? AND payment_status = 'pending'",
+        [$user_id]
+    )['count'] ?? 0;
     
     // OPTIMIZED QUERY: Using JOIN instead of subquery for product images
     $cart_items = $db->fetchAll("
@@ -106,6 +114,18 @@ include '../../includes/header.php';
             <a href="../../auth/login.php?redirect=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>" class="alert-link">
                 Login
             </a> to save your cart and access it from any device.
+        </div>
+    <?php endif; ?>
+
+    <?php if (isLoggedIn() && !empty($pending_payment_count)): ?>
+        <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                You have <?php echo $pending_payment_count; ?> order<?php echo $pending_payment_count > 1 ? 's' : ''; ?> awaiting payment.
+            </div>
+            <a href="../orders/order-history.php" class="btn btn-warning btn-sm">
+                <i class="bi bi-credit-card me-1"></i> View Pending Payment<?php echo $pending_payment_count > 1 ? 's' : ''; ?>
+            </a>
         </div>
     <?php endif; ?>
     
