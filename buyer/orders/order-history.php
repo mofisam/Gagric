@@ -56,38 +56,26 @@ include '../../includes/header.php';
     <!-- Order Filters -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
-            <h5 class="card-title mb-1">Filter Orders</h5>
-            <div class="row g-2">
-                <div class="col-auto">
-                    <a href="?status=" class="btn btn-outline-secondary <?php echo empty($status_filter) ? 'active' : ''; ?>">
-                        <i class="bi bi-grid-3x3-gap me-2"></i> All Orders
-                    </a>
-                </div>
-                <div class="col-auto">
-                    <a href="?status=pending" class="btn btn-outline-secondary <?php echo $status_filter === 'pending' ? 'active' : ''; ?>">
-                        <i class="bi bi-clock me-2"></i> Pending
-                    </a>
-                </div>
-                <div class="col-auto">
-                    <a href="?status=confirmed" class="btn btn-outline-secondary <?php echo $status_filter === 'confirmed' ? 'active' : ''; ?>">
-                        <i class="bi bi-check-circle me-2"></i> Confirmed
-                    </a>
-                </div>
-                <div class="col-auto">
-                    <a href="?status=shipped" class="btn btn-outline-secondary <?php echo $status_filter === 'shipped' ? 'active' : ''; ?>">
-                        <i class="bi bi-truck me-2"></i> Shipped
-                    </a>
-                </div>
-                <div class="col-auto">
-                    <a href="?status=delivered" class="btn btn-outline-secondary <?php echo $status_filter === 'delivered' ? 'active' : ''; ?>">
-                        <i class="bi bi-house-check me-2"></i> Delivered
-                    </a>
-                </div>
-                <div class="col-auto">
-                    <a href="?status=cancelled" class="btn btn-outline-secondary <?php echo $status_filter === 'cancelled' ? 'active' : ''; ?>">
-                        <i class="bi bi-x-circle me-2"></i> Cancelled
-                    </a>
-                </div>
+            <h5 class="card-title mb-2">Filter Orders</h5>
+            <div class="filter-scroll">
+                <a href="?status=" class="btn btn-outline-secondary <?php echo empty($status_filter) ? 'active' : ''; ?>">
+                    <i class="bi bi-grid-3x3-gap me-2"></i> All Orders
+                </a>
+                <a href="?status=pending" class="btn btn-outline-secondary <?php echo $status_filter === 'pending' ? 'active' : ''; ?>">
+                    <i class="bi bi-clock me-2"></i> Pending
+                </a>
+                <a href="?status=confirmed" class="btn btn-outline-secondary <?php echo $status_filter === 'confirmed' ? 'active' : ''; ?>">
+                    <i class="bi bi-check-circle me-2"></i> Confirmed
+                </a>
+                <a href="?status=shipped" class="btn btn-outline-secondary <?php echo $status_filter === 'shipped' ? 'active' : ''; ?>">
+                    <i class="bi bi-truck me-2"></i> Shipped
+                </a>
+                <a href="?status=delivered" class="btn btn-outline-secondary <?php echo $status_filter === 'delivered' ? 'active' : ''; ?>">
+                    <i class="bi bi-house-check me-2"></i> Delivered
+                </a>
+                <a href="?status=cancelled" class="btn btn-outline-secondary <?php echo $status_filter === 'cancelled' ? 'active' : ''; ?>">
+                    <i class="bi bi-x-circle me-2"></i> Cancelled
+                </a>
             </div>
         </div>
     </div>
@@ -96,7 +84,8 @@ include '../../includes/header.php';
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
             <?php if ($total_orders > 0): ?>
-                <div class="table-responsive">
+                <!-- Desktop / tablet: table view -->
+                <div class="table-responsive d-none d-md-block">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
                             <tr>
@@ -110,6 +99,9 @@ include '../../includes/header.php';
                         <tbody>
                             <?php foreach ($orders as $order): 
                                 $item_count = $db->fetchOne("SELECT COUNT(*) as count FROM order_items WHERE order_id = ?", [$order['id']])['count'];
+                                $payment_badge = $order['payment_status'] === 'paid' ? 
+                                    '<span class="badge bg-success bg-opacity-10 text-success"><i class="bi bi-check-circle me-1"></i> Paid</span>' :
+                                    '<span class="badge bg-warning bg-opacity-10 text-warning"><i class="bi bi-clock me-1"></i> Pending</span>';
                             ?>
                                 <tr class="border-bottom">
                                     <td class="ps-4">
@@ -136,12 +128,7 @@ include '../../includes/header.php';
                                         </span>
                                     </td>
                                     <td class="text-center align-middle">
-                                        <?php 
-                                        $payment_badge = $order['payment_status'] === 'paid' ? 
-                                            '<span class="badge bg-success bg-opacity-10 text-success"><i class="bi bi-check-circle me-1"></i> Paid</span>' :
-                                            '<span class="badge bg-warning bg-opacity-10 text-warning"><i class="bi bi-clock me-1"></i> Pending</span>';
-                                        echo $payment_badge;
-                                        ?>
+                                        <?php echo $payment_badge; ?>
                                     </td>
                                     <td class="text-center align-middle">
                                         <?php echo getOrderStatusBadge($order['status']); ?>
@@ -171,6 +158,63 @@ include '../../includes/header.php';
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Mobile: stacked card view -->
+                <div class="d-md-none">
+                    <?php foreach ($orders as $order): 
+                        $item_count = $db->fetchOne("SELECT COUNT(*) as count FROM order_items WHERE order_id = ?", [$order['id']])['count'];
+                        $payment_badge = $order['payment_status'] === 'paid' ? 
+                            '<span class="badge bg-success bg-opacity-10 text-success"><i class="bi bi-check-circle me-1"></i> Paid</span>' :
+                            '<span class="badge bg-warning bg-opacity-10 text-warning"><i class="bi bi-clock me-1"></i> Pending</span>';
+                    ?>
+                        <div class="order-mobile-card border-bottom p-3">
+                            <div class="d-flex align-items-start mb-2">
+                                <div class="bg-light rounded p-2 me-3 flex-shrink-0">
+                                    <i class="bi bi-receipt text-success" style="font-size: 1.2rem;"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1"><?php echo $order['order_number']; ?></h6>
+                                    <p class="text-muted small mb-1">
+                                        <i class="bi bi-calendar me-1"></i>
+                                        <?php echo formatDate($order['created_at'], 'F j, Y'); ?>
+                                    </p>
+                                </div>
+                                <div class="text-end flex-shrink-0">
+                                    <?php echo getOrderStatusBadge($order['status']); ?>
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                                <span class="badge bg-light text-dark">
+                                    <?php echo $item_count; ?> item<?php echo $item_count != 1 ? 's' : ''; ?>
+                                </span>
+                                <?php echo $payment_badge; ?>
+                                <span class="fw-semibold ms-auto text-success">
+                                    <?php echo formatCurrency($order['total_amount']); ?>
+                                </span>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="order-details.php?order_number=<?php echo $order['order_number']; ?>" 
+                                   class="btn btn-sm btn-outline-success flex-grow-1">
+                                    <i class="bi bi-eye me-1"></i> View
+                                </a>
+                                <?php if ($order['payment_status'] !== 'paid' && $order['status'] !== 'cancelled'): ?>
+                                    <a href="../cart/payment.php?order_number=<?php echo urlencode($order['order_number']); ?>" 
+                                       class="btn btn-sm btn-outline-success flex-grow-1">
+                                        <i class="bi bi-credit-card me-1"></i> Pay Now
+                                    </a>
+                                <?php endif; ?>
+                                <?php if ($order['status'] === 'pending'): ?>
+                                    <button type="button" class="btn btn-sm btn-outline-danger flex-grow-1" 
+                                            onclick="cancelOrder(<?php echo $order['id']; ?>)">
+                                        <i class="bi bi-x-circle me-1"></i> Cancel
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
                 
                 <!-- Order Summary -->
@@ -224,6 +268,42 @@ include '../../includes/header.php';
 /* Custom styles for a cleaner look */
 .card {
     border-radius: 12px;
+}
+
+/* Filter Orders: horizontally scrollable chip row instead of wrapping
+   buttons of uneven width - avoids the ragged multi-line layout on
+   narrow screens, while still showing everything in one line on desktop. */
+.filter-scroll {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.filter-scroll .btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.filter-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.filter-scroll::-webkit-scrollbar-thumb {
+    background-color: #ced4da;
+    border-radius: 4px;
+}
+
+/* Mobile order cards */
+.order-mobile-card:last-child {
+    border-bottom: 0 !important;
+}
+
+.order-mobile-card:active {
+    background-color: #f8f9fa;
 }
 
 .table thead th {
