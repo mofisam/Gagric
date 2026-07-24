@@ -279,10 +279,14 @@ class Mailer {
             $this->mail->Body = $content;
             $this->mail->AltBody = $this->getPlainTextContent($content);
             
-            return $this->mail->send();
+            $result = $this->mail->send();
+
+            error_log("Seller new-order email to " . $sellerData['email'] . " (order #" . $orderData['order_number'] . "): " . ($result ? 'SENT' : 'FAILED (no exception)'));
+
+            return $result;
             
         } catch (Exception $e) {
-            error_log("Failed to send seller notification: " . $e->getMessage());
+            error_log("Failed to send seller notification to " . ($sellerData['email'] ?? 'unknown') . " for order #" . ($orderData['order_number'] ?? 'unknown') . ": " . $e->getMessage());
             return false;
         }
     }
@@ -546,7 +550,7 @@ class Mailer {
         <p>You can track your order from your account dashboard:</p>
         
         <p style="text-align: center; margin: 30px 0;">
-            <a href="' . BASE_URL . '/buyer/orders/track-order.php?id=' . $orderData['id'] . '" class="btn-primary">Track Your Order</a>
+            <a href="' . BASE_URL . '/buyer/orders/order-details.php?id=' . $orderData['id'] . '" class="btn-primary">Track Your Order</a>
         </p>
         
         <div class="info-box">
@@ -732,7 +736,7 @@ class Mailer {
         <p>Your order is now being processed. You will receive a confirmation when it\'s shipped.</p>
         
         <p style="text-align: center; margin: 30px 0;">
-            <a href="' . BASE_URL . '/buyer/orders/view-order.php?id=' . $orderData['id'] . '" class="btn-primary">View Order Details</a>
+            <a href="' . BASE_URL . '/buyer/orders/order-details.php?id=' . $orderData['id'] . '" class="btn-primary">View Order Details</a>
         </p>
         
         <p>Best regards,<br>
@@ -790,7 +794,7 @@ class Mailer {
         </div>
         
         <p style="text-align: center; margin: 30px 0;">
-            <a href="' . BASE_URL . '/seller/orders/view-order.php?id=' . $orderData['id'] . '" class="btn-primary">View Order Details</a>
+            <a href="' . BASE_URL . '/seller/orders/order-details.php?id=' . $orderData['id'] . '" class="btn-primary">View Order Details</a>
         </p>
         
         <div class="info-box">
@@ -814,4 +818,3 @@ class Mailer {
         );
     }
 }
-?>

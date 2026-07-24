@@ -5,6 +5,7 @@ require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
 require_once '../../classes/Database.php';
 require_once '../../classes/Order.php';
+require_once '../../classes/Mailer.php';
 require_once '../../config/paystack.php';
 
 requireBuyer();
@@ -384,11 +385,17 @@ if (isset($_GET['reference'])) {
             */
 
             $orders_to_update = $db->fetchAll(
-                "SELECT id, order_number
+                "SELECT id, order_number, created_at
                  FROM orders
                  WHERE payment_id = ?",
                 [$payment['id']]
             );
+
+            // Track which orders actually still had pending items at this exact
+            // moment - Paystack's webhook can independently mark the same order
+            // paid, so we only want to notify sellers once, from whichever path
+            // (this page or the webhook) genuinely performs the transition.
+            $orders_needing_notification = [];
 
             foreach ($orders_to_update as $ord) {
                 $db->update('orders', [
@@ -397,11 +404,86 @@ if (isset($_GET['reference'])) {
                     'paid_at' => date('Y-m-d H:i:s')
                 ], 'id = ?', [$ord['id']]);
 
+                $stillPending = $db->fetchOne(
+                    "SELECT COUNT(*) as count FROM order_items WHERE order_id = ? AND status = 'pending'",
+                    [$ord['id']]
+                )['count'] ?? 0;
+
+                if ($stillPending > 0) {
+                    $orders_needing_notification[] = $ord;
+                }
+
                 $db->update('order_items', [
                     'status' => 'confirmed'
                 ], 'order_id = ? AND status = ?', [$ord['id'], 'pending']);
 
                 $verified_orders[] = $ord['order_number'];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | NOTIFY SELLERS
+            |--------------------------------------------------------------------------
+            | Each order can contain items from more than one seller, so group
+            | this order's items by seller and send one "new order" email per
+            | seller involved - failure to email never blocks the payment
+            | confirmation itself. A fresh Mailer/SMTP connection is created for
+            | each individual send rather than reusing one connection across
+            | several emails - some mail servers (Truehost included) silently
+            | reject the 2nd+ send over a reused connection in the same request,
+            | which otherwise causes only the first seller to actually get emailed.
+            */
+
+            foreach ($orders_needing_notification as $ord) {
+                $items_by_seller = $db->fetchAll(
+                    "SELECT oi.seller_id, oi.product_name, oi.quantity, oi.unit,
+                            oi.unit_price as price, oi.item_total as total_price,
+                            u.email as seller_email, sp.business_name
+                     FROM order_items oi
+                     JOIN seller_profiles sp ON oi.seller_id = sp.user_id
+                     JOIN users u ON sp.user_id = u.id
+                     WHERE oi.order_id = ?",
+                    [$ord['id']]
+                );
+
+                $grouped = [];
+                foreach ($items_by_seller as $item) {
+                    $sid = $item['seller_id'];
+                    if (!isset($grouped[$sid])) {
+                        $grouped[$sid] = [
+                            'seller_email' => $item['seller_email'],
+                            'business_name' => $item['business_name'],
+                            'items' => [],
+                        ];
+                    }
+                    $grouped[$sid]['items'][] = [
+                        'product_name' => $item['product_name'],
+                        'quantity' => $item['quantity'],
+                        'unit' => $item['unit'],
+                        'price' => $item['price'],
+                        'total_price' => $item['total_price'],
+                    ];
+                }
+
+                foreach ($grouped as $sellerGroup) {
+                    try {
+                        $mailer = new Mailer();
+                        $mailer->sendSellerNewOrder(
+                            [
+                                'id' => $ord['id'],
+                                'order_number' => $ord['order_number'],
+                                'created_at' => $ord['created_at'],
+                            ],
+                            [
+                                'email' => $sellerGroup['seller_email'],
+                                'business_name' => $sellerGroup['business_name'],
+                            ],
+                            $sellerGroup['items']
+                        );
+                    } catch (Exception $e) {
+                        error_log("Seller new-order email failed for order {$ord['order_number']}: " . $e->getMessage());
+                    }
+                }
             }
 
             /*
