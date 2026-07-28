@@ -89,9 +89,10 @@ try {
         [$order_id]
     );
 
-    // Restore product stock quantities
+    // Restore product stock quantities, and keep seller_id/quantity/item id
+    // around for the refund_requests inserts below.
     $order_items = $db->fetchAll(
-        "SELECT product_id, quantity FROM order_items WHERE order_id = ?",
+        "SELECT id, product_id, seller_id, quantity FROM order_items WHERE order_id = ?",
         [$order_id]
     );
 
@@ -104,46 +105,56 @@ try {
 
     // If payment was made, initiate refund
     if ($order['payment_status'] === 'paid') {
-        // Mark payment for refund
-        $db->query(
-            "UPDATE payments SET status = 'refund_pending' WHERE order_id = ?",
-            [$order_id]
-        );
-        
-        // Log refund request
-        $db->query(
-            "INSERT INTO refunds (order_id, amount, reason, status) 
-             VALUES (?, ?, 'Order cancellation', 'pending')",
-            [$order_id, $order['total_amount']]
-        );
+        // Mark the linked payment for refund (orders.payment_id -> payments.id,
+        // not the other way around - a payment can cover more than one order).
+        if (!empty($order['payment_id'])) {
+            $db->query(
+                "UPDATE payments SET status = 'refund_pending' WHERE id = ?",
+                [$order['payment_id']]
+            );
+        }
+
+        // Log a refund request per order item (refund_requests is keyed by
+        // order_item_id + seller_id, there is no order-level refunds table).
+        $item_amount = count($order_items) > 0 ? $order['total_amount'] / count($order_items) : $order['total_amount'];
+        foreach ($order_items as $item) {
+            $db->query(
+                "INSERT INTO refund_requests (order_item_id, seller_id, amount, reason, status) 
+                 VALUES (?, ?, ?, 'Order cancellation', 'pending')",
+                [$item['id'], $item['seller_id'], $item_amount]
+            );
+        }
     }
 
     // Log the cancellation
     $db->query(
-        "INSERT INTO order_logs (order_id, action, user_id, details) 
+        "INSERT INTO order_status_history (order_id, status, changed_by, notes) 
          VALUES (?, 'cancelled', ?, 'Order cancelled by user')",
         [$order_id, $user_id]
     );
 
-    // Send notification to seller(s)
+    // Notify seller(s) and buyer via the app's Notification class
+    // (there is no separate `notifications` table to insert into directly).
+    require_once '../../classes/Notification.php';
+    $notification = new Notification($db);
+
     $sellers = $db->fetchAll(
         "SELECT DISTINCT seller_id FROM order_items WHERE order_id = ?",
         [$order_id]
     );
 
     foreach ($sellers as $seller) {
-        $db->query(
-            "INSERT INTO notifications (user_id, title, message, type) 
-             VALUES (?, ?, ?, 'warning')",
-            [$seller['seller_id'], 'Order Cancelled', 'Order #' . $order['order_number'] . ' has been cancelled']
+        $notification->sendToSeller(
+            $seller['seller_id'],
+            'Order Cancelled',
+            'Order #' . $order['order_number'] . ' has been cancelled'
         );
     }
 
-    // Send notification to buyer
-    $db->query(
-        "INSERT INTO notifications (user_id, title, message, type) 
-         VALUES (?, ?, ?, 'info')",
-        [$user_id, 'Order Cancelled', 'Your order #' . $order['order_number'] . ' has been cancelled successfully']
+    $notification->sendToUser(
+        $user_id,
+        'Order Cancelled',
+        'Your order #' . $order['order_number'] . ' has been cancelled successfully'
     );
 
     // Commit transaction

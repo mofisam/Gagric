@@ -51,6 +51,7 @@ if (!empty($date_to)) {
 // Get payments
 $payments = $db->fetchAll("
     SELECT p.*, 
+           o.id as order_id,
            o.order_number, 
            o.total_amount, 
            o.status as order_status,
@@ -59,7 +60,7 @@ $payments = $db->fetchAll("
            u.phone as customer_phone,
            CONCAT(u.first_name, ' ', u.last_name) as customer_name
     FROM payments p 
-    JOIN orders o ON p.order_id = o.id 
+    JOIN orders o ON o.payment_id = p.id 
     JOIN users u ON o.buyer_id = u.id 
     $where 
     ORDER BY p.created_at DESC 
@@ -67,7 +68,7 @@ $payments = $db->fetchAll("
 ", $params);
 
 // Total count for pagination
-$total_payments = $db->fetchOne("SELECT COUNT(*) as count FROM payments p JOIN orders o ON p.order_id = o.id $where", $params)['count'];
+$total_payments = $db->fetchOne("SELECT COUNT(*) as count FROM payments p JOIN orders o ON o.payment_id = p.id $where", $params)['count'];
 $total_pages = ceil($total_payments / $limit);
 
 // Stats

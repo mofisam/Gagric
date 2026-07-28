@@ -81,7 +81,9 @@ $shipping = $db->fetchOne("
 ", [$order_id]);
 
 // Get payment details
-$payment = $db->fetchOne("SELECT * FROM payments WHERE order_id = ?", [$order_id]);
+$payment = !empty($order_data['payment_id'])
+    ? $db->fetchOne("SELECT * FROM payments WHERE id = ?", [$order_data['payment_id']])
+    : null;
 
 // Platform information
 $platform_info = [

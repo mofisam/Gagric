@@ -44,7 +44,9 @@ $order_items = $db->fetchAll("
 ", [$order_id]);
 
 // Get payment details
-$payment = $db->fetchOne("SELECT * FROM payments WHERE order_id = ?", [$order_id]);
+$payment = !empty($order['payment_id'])
+    ? $db->fetchOne("SELECT * FROM payments WHERE id = ?", [$order['payment_id']])
+    : null;
 
 // Handle status update
 if (isset($_POST['update_status'])) {
