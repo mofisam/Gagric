@@ -9,6 +9,19 @@ $db = new Database();
 $seller_id = $_SESSION['user_id'];
 $product_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
+// A business location is required to work out distance-based shipping fees
+// (see seller/store/settings.php) - don't let a seller list products (even
+// via duplicating an existing one) until they've set it.
+$seller_profile_check = $db->fetchOne(
+    "SELECT business_address_id FROM seller_profiles WHERE user_id = ?",
+    [$seller_id]
+);
+if (empty($seller_profile_check['business_address_id'])) {
+    setFlashMessage('Please set your business location before adding products - this is needed to calculate shipping fees for your buyers.', 'error');
+    header('Location: ../store/settings.php');
+    exit;
+}
+
 // Get active subscription information
 $subscription = $db->fetchOne("
     SELECT 
@@ -527,7 +540,6 @@ include '../../includes/header.php';
                                                         <option value="ton" <?php echo $original_product['unit'] == 'ton' ? 'selected' : ''; ?>>Ton</option>
                                                         <option value="bag" <?php echo $original_product['unit'] == 'bag' ? 'selected' : ''; ?>>Bag</option>
                                                         <option value="crate" <?php echo $original_product['unit'] == 'crate' ? 'selected' : ''; ?>>Crate</option>
-                                                        <option value="bunch" <?php echo $original_product['unit'] == 'bunch' ? 'selected' : ''; ?>>Bunch</option>
                                                         <option value="piece" <?php echo $original_product['unit'] == 'piece' ? 'selected' : ''; ?>>Piece</option>
                                                         <option value="dozen" <?php echo $original_product['unit'] == 'dozen' ? 'selected' : ''; ?>>Dozen</option>
                                                         <option value="liter" <?php echo $original_product['unit'] == 'liter' ? 'selected' : ''; ?>>Liter (L)</option>

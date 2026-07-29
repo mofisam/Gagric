@@ -10,6 +10,19 @@ $seller_id = $_SESSION['user_id'];
 $error = '';
 $success = '';
 
+// A business location is required to work out distance-based shipping fees
+// (see seller/store/settings.php) - don't let a seller list products until
+// they've set it.
+$seller_profile_check = $db->fetchOne(
+    "SELECT business_address_id FROM seller_profiles WHERE user_id = ?",
+    [$seller_id]
+);
+if (empty($seller_profile_check['business_address_id'])) {
+    setFlashMessage('Please set your business location before adding products - this is needed to calculate shipping fees for your buyers.', 'error');
+    header('Location: ../store/settings.php');
+    exit;
+}
+
 // Get active subscription information
 $subscription = $db->fetchOne("
     SELECT 
@@ -487,7 +500,6 @@ require_once '../../includes/header.php';
                                                 <option value="ton" <?php echo ($_POST['unit'] ?? '') == 'ton' ? 'selected' : ''; ?>>Ton</option>
                                                 <option value="bag" <?php echo ($_POST['unit'] ?? '') == 'bag' ? 'selected' : ''; ?>>Bag</option>
                                                 <option value="crate" <?php echo ($_POST['unit'] ?? '') == 'crate' ? 'selected' : ''; ?>>Crate</option>
-                                                <option value="bunch" <?php echo ($_POST['unit'] ?? '') == 'bunch' ? 'selected' : ''; ?>>Bunch</option>
                                                 <option value="piece" <?php echo ($_POST['unit'] ?? '') == 'piece' ? 'selected' : ''; ?>>Piece</option>
                                                 <option value="dozen" <?php echo ($_POST['unit'] ?? '') == 'dozen' ? 'selected' : ''; ?>>Dozen</option>
                                                 <option value="liter" <?php echo ($_POST['unit'] ?? '') == 'liter' ? 'selected' : ''; ?>>Liter (L)</option>

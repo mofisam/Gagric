@@ -12,6 +12,34 @@ $db = new Database();
 $order = new Order($db);
 $user_id = getCurrentUserId();
 
+/**
+ * Work out which of a seller's 3 configured shipping tiers applies, based on
+ * comparing the buyer's delivery state/LGA to the seller's own business
+ * address. Falls back to sensible defaults if a seller hasn't set up their
+ * shipping rates or business address yet.
+ */
+function calculateSellerShippingFee($sellerShippingInfo, $buyerStateId, $buyerLgaId) {
+    $same_lga_fee = (float)($sellerShippingInfo['same_lga_fee'] ?? 500.00);
+    $same_state_fee = (float)($sellerShippingInfo['same_state_fee'] ?? 1000.00);
+    $interstate_fee = (float)($sellerShippingInfo['interstate_fee'] ?? 2000.00);
+
+    // Seller hasn't set a business address yet - we can't work out distance,
+    // so fall back to their same-state rate as a reasonable middle ground.
+    if (empty($sellerShippingInfo['state_id'])) {
+        return $same_state_fee;
+    }
+
+    if ($buyerLgaId && $buyerLgaId == $sellerShippingInfo['lga_id']) {
+        return $same_lga_fee;
+    }
+
+    if ($buyerStateId && $buyerStateId == $sellerShippingInfo['state_id']) {
+        return $same_state_fee;
+    }
+
+    return $interstate_fee;
+}
+
 // Generate CSRF token if not exists
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -99,11 +127,64 @@ foreach ($cart_by_seller as $seller_data) {
     $global_subtotal += $seller_data['subtotal'];
 }
 
-$shipping_per_seller = 500;
-$global_shipping = count($cart_by_seller) * $shipping_per_seller;
-$global_total = $global_subtotal + $global_shipping;
+// Attach each seller's shipping-rate configuration and business location
+foreach ($cart_by_seller as $seller_id => &$seller_data) {
+    $rate_row = $db->fetchOne(
+        "SELECT ssr.same_lga_fee, ssr.same_state_fee, ssr.interstate_fee, ua.state_id, ua.lga_id
+         FROM seller_profiles sp
+         LEFT JOIN seller_shipping_rates ssr ON ssr.seller_id = sp.user_id
+         LEFT JOIN user_addresses ua ON sp.business_address_id = ua.id
+         WHERE sp.user_id = ?",
+        [$seller_id]
+    );
+
+    $seller_data['shipping_info'] = [
+        'same_lga_fee' => $rate_row['same_lga_fee'] ?? 500.00,
+        'same_state_fee' => $rate_row['same_state_fee'] ?? 1000.00,
+        'interstate_fee' => $rate_row['interstate_fee'] ?? 2000.00,
+        'state_id' => $rate_row['state_id'] ?? null,
+        'lga_id' => $rate_row['lga_id'] ?? null,
+    ];
+}
+unset($seller_data);
 
 $selected_address_id = $_SESSION['checkout_address_id'] ?? null;
+
+// Figure out which address to use for the shipping estimate shown on this
+// page load: the previously selected one, else the default, else the first
+// on file. The actual charge is recalculated again at submission time using
+// whichever address the buyer has picked by then (see the POST handling
+// below) - this is just for an accurate initial display.
+$display_address = null;
+foreach ($addresses as $addr) {
+    if ($addr['id'] == $selected_address_id) {
+        $display_address = $addr;
+        break;
+    }
+}
+if (!$display_address) {
+    foreach ($addresses as $addr) {
+        if ($addr['is_default']) {
+            $display_address = $addr;
+            break;
+        }
+    }
+}
+if (!$display_address && !empty($addresses)) {
+    $display_address = $addresses[0];
+}
+
+foreach ($cart_by_seller as $seller_id => &$seller_data) {
+    $seller_data['shipping_fee'] = calculateSellerShippingFee(
+        $seller_data['shipping_info'],
+        $display_address['state_id'] ?? null,
+        $display_address['lga_id'] ?? null
+    );
+}
+unset($seller_data);
+
+$global_shipping = array_sum(array_column($cart_by_seller, 'shipping_fee'));
+$global_total = $global_subtotal + $global_shipping;
 
 // Process checkout
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -137,7 +218,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach ($cart_by_seller as $seller_id => $seller_data) {
                     // Calculate seller amounts
                     $seller_subtotal = $seller_data['subtotal'];
-                    $seller_shipping = $shipping_per_seller;
+                    $seller_shipping = calculateSellerShippingFee(
+                        $seller_data['shipping_info'],
+                        $selected_address['state_id'] ?? null,
+                        $selected_address['lga_id'] ?? null
+                    );
                     $seller_total = $seller_subtotal + $seller_shipping;
                     
                     // Generate unique order number
@@ -530,11 +615,11 @@ include '../../includes/header.php';
                                                     </tr>
                                                     <tr>
                                                         <td colspan="3" class="text-end"><small>Shipping:</small></td>
-                                                        <td class="text-end"><small><?php echo formatCurrency($shipping_per_seller); ?></small></td>
+                                                        <td class="text-end"><small id="seller-shipping-<?php echo $seller_id; ?>"><?php echo formatCurrency($seller_data['shipping_fee']); ?></small></td>
                                                     </tr>
                                                     <tr class="table-success">
                                                         <td colspan="3" class="text-end"><strong>Order Total:</strong></td>
-                                                        <td class="text-end"><strong class="fs-6"><?php echo formatCurrency($seller_data['subtotal'] + $shipping_per_seller); ?></strong></td>
+                                                        <td class="text-end"><strong class="fs-6" id="seller-total-<?php echo $seller_id; ?>"><?php echo formatCurrency($seller_data['subtotal'] + $seller_data['shipping_fee']); ?></strong></td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
@@ -597,8 +682,7 @@ include '../../includes/header.php';
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span>Shipping</span>
-                                    <span><?php echo formatCurrency($global_shipping); ?></span>
-                                    <small class="text-muted">(<?php echo count($cart_by_seller); ?> × ₦500)</small>
+                                    <span id="summary-shipping"><?php echo formatCurrency($global_shipping); ?></span>
                                 </div>
                                 <div class="d-flex justify-content-between">
                                     <span>Tax</span>
@@ -611,16 +695,16 @@ include '../../includes/header.php';
                             <!-- Total -->
                             <div class="d-flex justify-content-between mb-4">
                                 <h5 class="mb-0">Total to Pay</h5>
-                                <h5 class="mb-0 text-success fw-bold"><?php echo formatCurrency($global_total); ?></h5>
+                                <h5 class="mb-0 text-success fw-bold" id="summary-total"><?php echo formatCurrency($global_total); ?></h5>
                             </div>
                             
                             <!-- Per Seller Breakdown -->
                             <div class="mb-3">
                                 <small class="text-muted d-block mb-2">Amount per seller:</small>
-                                <?php foreach ($cart_by_seller as $seller_data): ?>
+                                <?php foreach ($cart_by_seller as $seller_id => $seller_data): ?>
                                     <div class="d-flex justify-content-between small mb-1">
                                         <span><?php echo htmlspecialchars(substr($seller_data['seller_info']['seller_name'], 0, 20)); ?></span>
-                                        <span><?php echo formatCurrency($seller_data['subtotal'] + $shipping_per_seller); ?></span>
+                                        <span id="seller-breakdown-<?php echo $seller_id; ?>"><?php echo formatCurrency($seller_data['subtotal'] + $seller_data['shipping_fee']); ?></span>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
@@ -656,6 +740,72 @@ include '../../includes/header.php';
 </div>
 
 <script>
+// Data needed to recalculate shipping fees client-side when the buyer picks
+// a different address, without a page reload. Mirrors the same tier logic
+// as calculateSellerShippingFee() in PHP above.
+const SELLERS_SHIPPING_DATA = <?php echo json_encode(array_map(function($s) {
+    return [
+        'subtotal' => (float)$s['subtotal'],
+        'same_lga_fee' => (float)$s['shipping_info']['same_lga_fee'],
+        'same_state_fee' => (float)$s['shipping_info']['same_state_fee'],
+        'interstate_fee' => (float)$s['shipping_info']['interstate_fee'],
+        'state_id' => $s['shipping_info']['state_id'],
+        'lga_id' => $s['shipping_info']['lga_id'],
+    ];
+}, $cart_by_seller)); ?>;
+
+const ADDRESSES_DATA = <?php echo json_encode(array_reduce($addresses, function($carry, $a) {
+    $carry[$a['id']] = ['state_id' => $a['state_id'], 'lga_id' => $a['lga_id']];
+    return $carry;
+}, [])); ?>;
+
+function formatNaira(amount) {
+    return '₦' + amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function calculateFeeForSeller(seller, buyerStateId, buyerLgaId) {
+    if (!seller.state_id) {
+        return seller.same_state_fee;
+    }
+    if (buyerLgaId && String(buyerLgaId) === String(seller.lga_id)) {
+        return seller.same_lga_fee;
+    }
+    if (buyerStateId && String(buyerStateId) === String(seller.state_id)) {
+        return seller.same_state_fee;
+    }
+    return seller.interstate_fee;
+}
+
+function recalculateShipping(addressId) {
+    const address = ADDRESSES_DATA[addressId];
+    if (!address) return;
+
+    let globalShipping = 0;
+    let globalTotal = 0;
+
+    Object.keys(SELLERS_SHIPPING_DATA).forEach(sellerId => {
+        const seller = SELLERS_SHIPPING_DATA[sellerId];
+        const fee = calculateFeeForSeller(seller, address.state_id, address.lga_id);
+        const sellerTotal = seller.subtotal + fee;
+
+        globalShipping += fee;
+        globalTotal += sellerTotal;
+
+        const shippingEl = document.getElementById('seller-shipping-' + sellerId);
+        const totalEl = document.getElementById('seller-total-' + sellerId);
+        const breakdownEl = document.getElementById('seller-breakdown-' + sellerId);
+
+        if (shippingEl) shippingEl.textContent = formatNaira(fee);
+        if (totalEl) totalEl.textContent = formatNaira(sellerTotal);
+        if (breakdownEl) breakdownEl.textContent = formatNaira(sellerTotal);
+    });
+
+    const summaryShipping = document.getElementById('summary-shipping');
+    const summaryTotal = document.getElementById('summary-total');
+    if (summaryShipping) summaryShipping.textContent = formatNaira(globalShipping);
+    if (summaryTotal) summaryTotal.textContent = formatNaira(globalTotal);
+}
+
 // Address selection function
 function selectAddress(addressId) {
     document.querySelectorAll('input[name="address_id"]').forEach(radio => {
@@ -670,6 +820,8 @@ function selectAddress(addressId) {
             card.classList.add('selected', 'border-success');
         }
     });
+
+    recalculateShipping(addressId);
 }
 
 // Form submission with loading state
