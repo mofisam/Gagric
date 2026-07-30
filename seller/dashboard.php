@@ -17,12 +17,18 @@ $seller_profile = $db->fetchOne("
         sp.created_at as join_date,
         sp.total_sales,
         sp.avg_rating,
+        sp.business_address_id,
         COUNT(DISTINCT sr.id) as total_reviews
     FROM seller_profiles sp
     LEFT JOIN seller_ratings sr ON sp.user_id = sr.seller_id
     WHERE sp.user_id = ?
     GROUP BY sp.id
 ", [$seller_id]);
+
+// Business location is required before a seller can add products (see
+// seller/products/add-product.php) - flag it here too so this isn't a
+// surprise only encountered when they try to add one.
+$business_location_missing = empty($seller_profile['business_address_id']);
 
 // Get active subscription information
 $subscription = $db->fetchOne("
@@ -361,7 +367,23 @@ $page_css = 'dashboard.css';
                 </div>
             <?php endif; ?>
 
-            <!-- Product Limit Warning -->
+            <!-- Business Location Missing Banner -->
+            <?php if ($business_location_missing): ?>
+                <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-geo-alt-fill fs-4 me-3"></i>
+                        <div>
+                            <strong>Business location not set:</strong> add it in Store Settings so we can calculate accurate shipping fees for your buyers. You won't be able to add products until this is set.
+                        </div>
+                        <div class="ms-auto">
+                            <a href="store/settings.php" class="btn btn-warning btn-sm text-nowrap">
+                                <i class="bi bi-geo-alt me-1"></i> Set Location
+                            </a>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
             <?php if ($product_limit_reached): ?>
                 <div class="alert alert-danger mb-4">
                     <div class="d-flex align-items-center">
@@ -889,6 +911,12 @@ $page_css = 'dashboard.css';
                                 </a>
                                 <a href="store/profile.php" class="btn btn-warning">
                                     <i class="bi bi-shop me-2"></i> Update Store Profile
+                                </a>
+                                <a href="store/settings.php" class="btn btn-outline-dark">
+                                    <i class="bi bi-gear me-2"></i> Store Settings
+                                    <?php if ($business_location_missing): ?>
+                                        <span class="badge bg-danger ms-1">!</span>
+                                    <?php endif; ?>
                                 </a>
                                 <?php if ($has_active_subscription && !$is_trial): ?>
                                     <a href="subscription/manage.php" class="btn btn-outline-primary">

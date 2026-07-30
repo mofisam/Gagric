@@ -349,11 +349,17 @@ if (isset($_GET['reference'])) {
             |--------------------------------------------------------------------------
             | VERIFY AMOUNT
             |--------------------------------------------------------------------------
+            | Paystack is configured so the customer covers the transaction fee,
+            | which means the amount actually charged (and returned here) is the
+            | order total PLUS Paystack's fee - it will legitimately be a little
+            | higher than $expectedAmount, not equal to it. Only reject amounts
+            | that are LOWER than expected (a genuine shortfall/tampering); a
+            | higher amount is the expected fee markup, not an error.
             */
 
             $expectedAmount = (int) round((float) $payment['amount'] * 100);
 
-            if ((int)$payment_data['amount'] !== $expectedAmount) {
+            if ((int)$payment_data['amount'] < $expectedAmount) {
                 throw new Exception('Payment amount mismatch');
             }
 
