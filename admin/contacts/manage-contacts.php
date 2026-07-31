@@ -18,6 +18,13 @@ if (empty($_SESSION['csrf_token'])) {
 
 require_once '../../includes/auth.php';
 requireAdmin();
+
+if (!adminHasPermission('contacts')) {
+    setFlashMessage("You do not have the permission to view this page.", 'error');
+    header('Location: ' . BASE_URL . '/admin/dashboard.php');
+    exit;
+}
+
 require_once '../../includes/functions.php';
 require_once '../../classes/Database.php';
 require_once '../../classes/Mailer.php';

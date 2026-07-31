@@ -2,6 +2,12 @@
 require_once '../../includes/auth.php';
 requireAdmin();
 
+if (!adminHasPermission('reports')) {
+    setFlashMessage("You do not have the permission to view this page.", 'error');
+    header('Location: ' . BASE_URL . '/admin/dashboard.php');
+    exit;
+}
+
 $page_title = "Platform Statistics";
 $page_css = 'dashboard.css';
 

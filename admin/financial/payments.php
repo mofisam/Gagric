@@ -1,10 +1,16 @@
 <?php
 require_once '../../includes/auth.php';
 requireAdmin();
+
+if (!adminHasPermission('financial')) {
+    setFlashMessage("You do not have the permission to view this page.", 'error');
+    header('Location: ' . BASE_URL . '/admin/dashboard.php');
+    exit;
+}
+
 require_once '../../includes/header.php';
 require_once '../../classes/Database.php';
 
-requireAdmin();
 
 $db = new Database();
 

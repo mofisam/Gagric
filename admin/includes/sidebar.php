@@ -55,6 +55,7 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
                 </a>
             </li>
             
+            <?php if (adminHasPermission('users')): ?>
             <!-- Users Management -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_users; ?>" 
@@ -90,10 +91,21 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
                                 <?php endif; ?>
                             </a>
                         </li>
+                        <?php if (adminIsSuperAdmin()): ?>
+                        <li class="nav-item">
+                            <a class="nav-link"
+                               href="<?php echo BASE_URL; ?>/admin/users/admin-permissions.php">
+                                <i class="bi bi-shield-lock me-1"></i>
+                                Admin Permissions
+                            </a>
+                        </li>
+                        <?php endif; ?>
                     </ul>
                 </div>
             </li>
+            <?php endif; ?>
             
+            <?php if (adminHasPermission('products')): ?>
             <!-- Products Management -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_products; ?>" 
@@ -136,6 +148,8 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
                 </div>
             </li>
             
+            <?php endif; ?>
+            <?php if (adminHasPermission('orders')): ?>
             <!-- Orders Management -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_orders; ?>" 
@@ -152,6 +166,8 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
                 </a>
             </li>
             
+            <?php endif; ?>
+            <?php if (adminHasPermission('contacts')): ?>
             <!-- Contact Messages -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_messages; ?>"
@@ -175,6 +191,8 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
                 </a>
             </li>
 
+            <?php endif; ?>
+            <?php if (adminHasPermission('financial')): ?>
             <!-- Financial Management -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_financial; ?>" 
@@ -212,6 +230,8 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
                 </div>
             </li>
             
+            <?php endif; ?>
+            <?php if (adminHasPermission('subscriptions')): ?>
             <!-- Subscriptions Management -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_subscriptions; ?>" 
@@ -253,6 +273,8 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
                 </div>
             </li>
 
+            <?php endif; ?>
+            <?php if (adminHasPermission('reports')): ?>
             <!-- Reports -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_reports; ?>" 
@@ -290,6 +312,8 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
                 </div>
             </li>
             
+            <?php endif; ?>
+            <?php if (adminHasPermission('settings')): ?>
             <!-- Settings -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $active_settings; ?>" 
@@ -326,6 +350,7 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
                     </ul>
                 </div>
             </li>
+            <?php endif; ?>
         </ul>
         
         <!-- Quick Actions (Desktop only) -->
