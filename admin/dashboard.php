@@ -8,34 +8,48 @@ require_once '../classes/Database.php';
 
 $db = new Database();
 
-// Get dashboard statistics
-$stats = [
-    'total_users' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE is_active = TRUE")['count'],
-    'total_sellers' => $db->fetchOne("SELECT COUNT(*) as count FROM seller_profiles WHERE is_approved = TRUE")['count'],
-    'total_products' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE status = 'approved'")['count'],
-    'pending_approvals' => $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE status = 'pending'")['count'],
-    'total_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)")['count'],
-    'total_revenue' => $db->fetchOne("SELECT SUM(total_amount) as total FROM orders WHERE payment_status = 'paid' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)")['total'] ?? 0,
-    'pending_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'")['count'],
-    'today_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = CURDATE()")['count'],
-    'pending_sellers' => $db->fetchOne("SELECT COUNT(*) as count FROM seller_profiles WHERE is_approved = FALSE")['count'],
-];
+// Only fetch (and only show) data the current admin actually has permission
+// to see - a non-super-admin without 'financial' access shouldn't see
+// revenue figures anywhere on the dashboard, for example.
+$can_users = adminHasPermission('users');
+$can_products = adminHasPermission('products');
+$can_orders = adminHasPermission('orders');
+$can_financial = adminHasPermission('financial');
 
-// Revenue comparison (vs last month)
-$last_month_revenue = $db->fetchOne("SELECT SUM(total_amount) as total FROM orders WHERE payment_status = 'paid' AND created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)")['total'] ?? 0;
-$revenue_change = $last_month_revenue > 0 ? (($stats['total_revenue'] - $last_month_revenue) / $last_month_revenue) * 100 : 100;
+$stats = [];
 
-// Recent orders
-$recent_orders = $db->fetchAll("
+if ($can_users) {
+    $stats['total_users'] = $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE is_active = TRUE")['count'];
+    $stats['total_sellers'] = $db->fetchOne("SELECT COUNT(*) as count FROM seller_profiles WHERE is_approved = TRUE")['count'];
+    $stats['pending_sellers'] = $db->fetchOne("SELECT COUNT(*) as count FROM seller_profiles WHERE is_approved = FALSE")['count'];
+}
+
+if ($can_products) {
+    $stats['total_products'] = $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE status = 'approved'")['count'];
+    $stats['pending_approvals'] = $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE status = 'pending'")['count'];
+}
+
+if ($can_orders) {
+    $stats['total_orders'] = $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)")['count'];
+    $stats['pending_orders'] = $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'")['count'];
+    $stats['today_orders'] = $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = CURDATE()")['count'];
+}
+
+if ($can_financial) {
+    $stats['total_revenue'] = $db->fetchOne("SELECT SUM(total_amount) as total FROM orders WHERE payment_status = 'paid' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)")['total'] ?? 0;
+    $last_month_revenue = $db->fetchOne("SELECT SUM(total_amount) as total FROM orders WHERE payment_status = 'paid' AND created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)")['total'] ?? 0;
+    $revenue_change = $last_month_revenue > 0 ? (($stats['total_revenue'] - $last_month_revenue) / $last_month_revenue) * 100 : 100;
+}
+
+$recent_orders = $can_orders ? $db->fetchAll("
     SELECT o.*, u.first_name, u.last_name, u.phone 
     FROM orders o 
     JOIN users u ON o.buyer_id = u.id 
     ORDER BY o.created_at DESC 
     LIMIT 5
-");
+") : [];
 
-// Pending product approvals
-$pending_products = $db->fetchAll("
+$pending_products = $can_products ? $db->fetchAll("
     SELECT p.*, sp.business_name, u.phone as seller_phone
     FROM products p 
     JOIN seller_profiles sp ON p.seller_id = sp.user_id 
@@ -43,10 +57,9 @@ $pending_products = $db->fetchAll("
     WHERE p.status = 'pending' 
     ORDER BY p.created_at DESC 
     LIMIT 5
-");
+") : [];
 
-// Top selling products
-$top_products = $db->fetchAll("
+$top_products = $can_products ? $db->fetchAll("
     SELECT p.name,
     COUNT(oi.id) AS sales_count,
     SUM(oi.quantity) AS total_quantity
@@ -57,8 +70,19 @@ $top_products = $db->fetchAll("
     GROUP BY p.id, p.name
     ORDER BY sales_count DESC
     LIMIT 5;
-");
+") : [];
 
+// Work out how many stat cards will actually be shown, so the row can size
+// itself cleanly instead of leaving an awkward gap when some are hidden.
+$visible_card_count = ($can_users ? 2 : 0) + ($can_products ? 1 : 0) + ($can_financial ? 1 : 0);
+$card_col_class = match (true) {
+    $visible_card_count <= 1 => 'col-12',
+    $visible_card_count === 2 => 'col-6 col-md-6',
+    $visible_card_count === 3 => 'col-6 col-md-4',
+    default => 'col-6 col-md-6 col-lg-3',
+};
+
+$has_any_access = $can_users || $can_products || $can_orders || $can_financial;
 ?>
 
 <div class="container-fluid">
@@ -87,11 +111,9 @@ $top_products = $db->fetchAll("
                     <h1 class="h2 mb-1">Dashboard Overview</h1>
                     <p class="text-muted mb-0">Welcome back, <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Admin'); ?></p>
                 </div>
+                <?php if ($can_users || $can_products): ?>
                 <div class="btn-toolbar mb-2 mb-md-0">
                     <div class="btn-group me-2">
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="exportData">
-                            <i class="bi bi-download me-1"></i> Export
-                        </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshData">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
@@ -101,9 +123,12 @@ $top_products = $db->fetchAll("
                             <i class="bi bi-plus-circle me-1"></i> Quick Action
                         </button>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/admin/users/manage-users.php?action=add">
+                            <?php if ($can_users): ?>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/admin/users/add-user.php">
                                 <i class="bi bi-person-plus me-2"></i> Add User
                             </a></li>
+                            <?php endif; ?>
+                            <?php if ($can_products): ?>
                             <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/admin/products/manage-products.php?action=add">
                                 <i class="bi bi-plus-square me-2"></i> Add Product
                             </a></li>
@@ -111,15 +136,31 @@ $top_products = $db->fetchAll("
                             <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/admin/products/product-approvals.php">
                                 <i class="bi bi-shield-check me-2"></i> Review Approvals
                             </a></li>
+                            <?php endif; ?>
                         </ul>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
 
+            <?php if (!$has_any_access): ?>
+                <!-- No sections granted yet -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-shield-lock text-muted" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3">No sections enabled yet</h5>
+                        <p class="text-muted mb-0">Your admin account doesn't have access to any dashboard sections yet.<br>
+                        Contact a super-admin to have permissions assigned to your account.</p>
+                    </div>
+                </div>
+            <?php else: ?>
+
             <!-- Stats Grid -->
+            <?php if ($visible_card_count > 0): ?>
             <div class="row g-3 mb-4">
+                <?php if ($can_users): ?>
                 <!-- Total Users -->
-                <div class="col-6 col-md-6 col-lg-3">
+                <div class="<?php echo $card_col_class; ?>">
                     <div class="dashboard-card card border-start border-3 shadow-sm h-100">
                         <div class="card-body p-3">
                             <div class="d-flex justify-content-between align-items-start">
@@ -139,7 +180,7 @@ $top_products = $db->fetchAll("
                 </div>
                 
                 <!-- Approved Sellers -->
-                <div class="col-6 col-md-6 col-lg-3">
+                <div class="<?php echo $card_col_class; ?>">
                     <div class="dashboard-card card border-start border-3 shadow-sm h-100">
                         <div class="card-body p-3">
                             <div class="d-flex justify-content-between align-items-start">
@@ -165,9 +206,11 @@ $top_products = $db->fetchAll("
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
                 
+                <?php if ($can_products): ?>
                 <!-- Total Products -->
-                <div class="col-6 col-md-6 col-lg-3">
+                <div class="<?php echo $card_col_class; ?>">
                     <div class="dashboard-card card border-start border-3 shadow-sm h-100">
                         <div class="card-body p-3">
                             <div class="d-flex justify-content-between align-items-start">
@@ -193,9 +236,11 @@ $top_products = $db->fetchAll("
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
                 
+                <?php if ($can_financial): ?>
                 <!-- Monthly Revenue -->
-                <div class="col-6 col-md-6 col-lg-3">
+                <div class="<?php echo $card_col_class; ?>">
                     <div class="dashboard-card card border-start border-3 shadow-sm h-100">
                         <div class="card-body p-3">
                             <div class="d-flex justify-content-between align-items-start">
@@ -214,10 +259,13 @@ $top_products = $db->fetchAll("
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
+            <?php endif; ?>
 
             <!-- Main Content Area -->
             <div class="row g-4">
+                <?php if ($can_orders): ?>
                 <!-- Recent Orders -->
                 <div class="col-12 col-lg-8">
                     <div class="card shadow-sm border-0">
@@ -302,9 +350,11 @@ $top_products = $db->fetchAll("
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
                 
                 <!-- Right Column -->
-                <div class="col-12 col-lg-4">
+                <div class="col-12 <?php echo $can_orders ? 'col-lg-4' : ''; ?>">
+                    <?php if ($can_orders || $can_users || $can_products): ?>
                     <!-- Pending Approvals -->
                     <div class="card shadow-sm border-0 mb-4">
                         <div class="card-header bg-white border-0 pb-2">
@@ -314,14 +364,19 @@ $top_products = $db->fetchAll("
                             </h5>
                         </div>
                         <div class="card-body">
-                            <?php if (empty($pending_products) && $stats['pending_orders'] == 0): ?>
+                            <?php
+                            $has_pending_orders = $can_orders && $stats['pending_orders'] > 0;
+                            $has_pending_sellers = $can_users && $stats['pending_sellers'] > 0;
+                            $has_pending_products = $can_products && !empty($pending_products);
+                            ?>
+                            <?php if (!$has_pending_orders && !$has_pending_sellers && !$has_pending_products): ?>
                                 <div class="text-center py-3 text-muted">
                                     <i class="bi bi-check-circle fs-1 d-block mb-2 text-success"></i>
                                     All caught up!
                                 </div>
                             <?php else: ?>
                                 <div class="list-group list-group-flush">
-                                    <?php if($stats['pending_orders'] > 0): ?>
+                                    <?php if($has_pending_orders): ?>
                                     <a href="<?php echo BASE_URL; ?>/admin/orders/manage-orders.php?filter=pending" 
                                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                                         <div>
@@ -334,7 +389,7 @@ $top_products = $db->fetchAll("
                                     </a>
                                     <?php endif; ?>
                                     
-                                    <?php if($stats['pending_sellers'] > 0): ?>
+                                    <?php if($has_pending_sellers): ?>
                                     <a href="<?php echo BASE_URL; ?>/admin/users/seller-approvals.php" 
                                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                                         <div>
@@ -347,7 +402,7 @@ $top_products = $db->fetchAll("
                                     </a>
                                     <?php endif; ?>
                                     
-                                    <?php foreach ($pending_products as $product): ?>
+                                    <?php if ($has_pending_products): foreach ($pending_products as $product): ?>
                                     <a href="<?php echo BASE_URL; ?>/admin/products/product-details.php?id=<?php echo $product['id']; ?>" 
                                        class="list-group-item list-group-item-action">
                                         <div class="d-flex justify-content-between align-items-start">
@@ -360,8 +415,9 @@ $top_products = $db->fetchAll("
                                             <small class="text-warning">Pending</small>
                                         </div>
                                     </a>
-                                    <?php endforeach; ?>
+                                    <?php endforeach; endif; ?>
                                 </div>
+                                <?php if ($has_pending_products): ?>
                                 <div class="mt-3 d-grid">
                                     <a href="<?php echo BASE_URL; ?>/admin/products/product-approvals.php" 
                                        class="btn btn-warning btn-sm">
@@ -369,10 +425,13 @@ $top_products = $db->fetchAll("
                                         Review All Approvals
                                     </a>
                                 </div>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
                     </div>
+                    <?php endif; ?>
                     
+                    <?php if ($can_orders || $can_financial || $can_products): ?>
                     <!-- Quick Stats -->
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-white border-0 pb-2">
@@ -383,6 +442,7 @@ $top_products = $db->fetchAll("
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
+                                <?php if ($can_orders): ?>
                                 <div class="col-6">
                                     <div class="text-center p-2 border rounded">
                                         <div class="text-primary fw-bold fs-4"><?php echo $stats['today_orders']; ?></div>
@@ -395,24 +455,31 @@ $top_products = $db->fetchAll("
                                         <small class="text-muted">30-day Orders</small>
                                     </div>
                                 </div>
+                                <?php endif; ?>
+                                <?php if ($can_financial): ?>
                                 <div class="col-6">
                                     <div class="text-center p-2 border rounded">
                                         <div class="text-info fw-bold fs-4">₦<?php echo number_format($stats['total_revenue'] / 30, 2); ?></div>
                                         <small class="text-muted">Daily Average</small>
                                     </div>
                                 </div>
+                                <?php endif; ?>
+                                <?php if ($can_products): ?>
                                 <div class="col-6">
                                     <div class="text-center p-2 border rounded">
                                         <div class="text-warning fw-bold fs-4"><?php echo $stats['pending_approvals']; ?></div>
                                         <small class="text-muted">Pending Reviews</small>
                                     </div>
                                 </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
             
+            <?php if ($can_products): ?>
             <!-- Bottom Section (Top Products) -->
             <div class="row mt-4">
                 <div class="col-12">
@@ -463,6 +530,9 @@ $top_products = $db->fetchAll("
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
+
+            <?php endif; // $has_any_access ?>
         </main>
     </div>
 </div>
@@ -470,13 +540,6 @@ $top_products = $db->fetchAll("
 <!-- JavaScript for Dashboard Interactions -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-
-    
-    // Export button
-    document.getElementById('exportData')?.addEventListener('click', function() {
-        agriApp.showToast('Exporting data...', 'info');
-        // Implement export functionality here
-    });
     
     // Refresh button
     document.getElementById('refreshData')?.addEventListener('click', function() {
