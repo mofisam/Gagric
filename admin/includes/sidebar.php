@@ -30,7 +30,7 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
         </div>
     </div>
     
-    <div class="position-sticky pt-3">
+    <div class="pt-3">
         <!-- User profile mini -->
         <div class="text-center mb-4 p-3 border-bottom d-none d-md-block">
             <div class="mb-2">
@@ -355,19 +355,25 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
         
         <!-- Quick Actions (Desktop only) -->
         <div class="border-top mt-4 pt-3 d-none d-md-block">
+            <?php if (adminHasPermission('products') || adminHasPermission('orders')): ?>
             <h6 class="text-muted mb-2">Quick Actions</h6>
             <div class="d-grid gap-2">
+                <?php if (adminHasPermission('products')): ?>
                 <a href="<?php echo BASE_URL; ?>/admin/products/product-approvals.php" 
                    class="btn btn-sm btn-warning">
                     <i class="bi bi-shield-check me-1"></i>
                     Review Approvals
                 </a>
+                <?php endif; ?>
+                <?php if (adminHasPermission('orders')): ?>
                 <a href="<?php echo BASE_URL; ?>/admin/orders/manage-orders.php?filter=pending" 
                    class="btn btn-sm btn-info">
                     <i class="bi bi-bag-check me-1"></i>
                     Process Orders
                 </a>
+                <?php endif; ?>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 </aside>
@@ -375,6 +381,17 @@ $active_messages = (strpos($current_uri, '/admin/messages/') !== false) ? 'activ
 
 <!-- Add this CSS to your style.css file -->
 <style>
+/* Desktop sidebar: stay in place while the page scrolls, with its own
+   independent scroll if the menu content is taller than the viewport. */
+@media (min-width: 768px) {
+    #sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+    }
+}
+
 /* Mobile sidebar styles */
 @media (max-width: 767.98px) {
     #sidebar {
