@@ -1,15 +1,11 @@
 <?php
 require_once '../../includes/auth.php';
 requireAdmin();
-
-if (!adminHasPermission('orders')) {
-    setFlashMessage("You do not have the permission to view this page.", 'error');
-    header('Location: ' . BASE_URL . '/admin/dashboard.php');
-    exit;
-}
-
+requireAdminPermission('orders');
 require_once '../../includes/header.php';
 require_once '../../classes/Database.php';
+
+requireAdmin();
 
 $db = new Database();
 
@@ -92,10 +88,16 @@ $stats = [
     'shipped_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE status = 'shipped'")['count'],
     'delivered_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE status = 'delivered'")['count'],
     'cancelled_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE status = 'cancelled'")['count'],
-    'total_revenue' => $db->fetchOne("SELECT SUM(total_amount) as total FROM orders WHERE payment_status = 'paid'")['total'] ?? 0,
     'today_orders' => $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = CURDATE()")['count'],
     'pending_payment' => $db->fetchOne("SELECT COUNT(*) as count FROM orders WHERE payment_status = 'pending'")['count']
 ];
+
+// Total revenue is sensitive financial data - only a super-admin sees it,
+// regardless of whether this admin otherwise has 'orders' access. The query
+// itself only runs for super-admins too, not just the display.
+if (adminIsSuperAdmin()) {
+    $stats['total_revenue'] = $db->fetchOne("SELECT SUM(total_amount) as total FROM orders WHERE payment_status = 'paid'")['total'] ?? 0;
+}
 
 $page_title = "Manage Orders";
 $page_css = 'dashboard.css';
@@ -177,8 +179,13 @@ $page_css = 'dashboard.css';
                     <div class="col-6">
                         <div class="card shadow-sm border-0">
                             <div class="card-body p-2 text-center">
-                                <small class="text-muted d-block">Revenue</small>
-                                <h6 class="mb-0 text-primary">₦<?php echo number_format($stats['total_revenue'], 0); ?></h6>
+                                <?php if (adminIsSuperAdmin()): ?>
+                                    <small class="text-muted d-block">Revenue</small>
+                                    <h6 class="mb-0 text-primary">₦<?php echo number_format($stats['total_revenue'], 0); ?></h6>
+                                <?php else: ?>
+                                    <small class="text-muted d-block">Cancelled</small>
+                                    <h6 class="mb-0 text-danger"><?php echo number_format($stats['cancelled_orders']); ?></h6>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -255,11 +262,12 @@ $page_css = 'dashboard.css';
                     </div>
                 </div>
                 
-                <!-- Total Revenue -->
+                <!-- Total Revenue (super-admin only) / Delivered Orders (other admins) -->
                 <div class="col-md-3">
                     <div class="dashboard-card card border-start shadow-sm h-100">
                         <div class="card-body p-3">
                             <div class="d-flex justify-content-between align-items-start">
+                                <?php if (adminIsSuperAdmin()): ?>
                                 <div>
                                     <h6 class="card-subtitle text-muted mb-1">Total Revenue</h6>
                                     <h3 class="card-title mb-0">₦<?php echo number_format($stats['total_revenue'], 2); ?></h3>
@@ -270,6 +278,19 @@ $page_css = 'dashboard.css';
                                 <div class="bg-success bg-opacity-10 p-2 rounded">
                                     <i class="bi bi-cash-stack fs-5 text-success"></i>
                                 </div>
+                                <?php else: ?>
+                                <div>
+                                    <h6 class="card-subtitle text-muted mb-1">Delivered</h6>
+                                    <h3 class="card-title mb-0"><?php echo number_format($stats['delivered_orders']); ?></h3>
+                                    <small class="text-success">
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        Completed orders
+                                    </small>
+                                </div>
+                                <div class="bg-success bg-opacity-10 p-2 rounded">
+                                    <i class="bi bi-check2-circle fs-5 text-success"></i>
+                                </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
