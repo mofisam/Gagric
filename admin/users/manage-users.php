@@ -1,13 +1,7 @@
 <?php
 require_once '../../includes/auth.php';
 requireAdmin();
-
-if (!adminHasPermission('users')) {
-    setFlashMessage("You do not have the permission to view this page.", 'error');
-    header('Location: ' . BASE_URL . '/admin/dashboard.php');
-    exit;
-}
-require_once '../../includes/header.php';
+requireAdminPermission('users');
 require_once '../../classes/Database.php';
 
 $db = new Database();
@@ -87,6 +81,7 @@ $stats = [
 
 $page_title = "Manage Users";
 $page_css = 'dashboard.css';
+require_once '../../includes/header.php';
 ?>
 
 <div class="container-fluid">

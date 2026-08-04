@@ -74,6 +74,9 @@ require_once '../../includes/header.php';
                     <h1 class="h2 mb-1">Admin Permissions</h1>
                     <p class="text-muted mb-0">Control which sections each admin account can access</p>
                 </div>
+                <a href="add-user.php" class="btn btn-success">
+                    <i class="bi bi-person-plus me-1"></i> Add New Admin
+                </a>
             </div>
 
             <?php if (!empty($errors)): ?>

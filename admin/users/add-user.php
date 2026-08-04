@@ -1,13 +1,7 @@
 <?php
 require_once '../../includes/auth.php';
 requireAdmin();
-
-if (!adminHasPermission('users')) {
-    setFlashMessage("You do not have the permission to view this page.", 'error');
-    header('Location: ' . BASE_URL . '/admin/dashboard.php');
-    exit;
-}
-
+requireAdminPermission('users');
 require_once '../../classes/Database.php';
 require_once '../../classes/User.php';
 require_once '../../includes/functions.php';
@@ -62,6 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!in_array($form_data['role'], ['buyer', 'seller', 'admin'], true)) {
             $errors[] = 'Please select a valid role.';
+        }
+
+        if ($form_data['role'] === 'admin' && !adminIsSuperAdmin()) {
+            $errors[] = 'Only a super-admin can create new admin accounts.';
         }
 
         $dobDate = null;
@@ -256,7 +254,9 @@ require_once '../../includes/header.php';
                                 <select class="form-select" id="role" name="role" required>
                                     <option value="buyer" <?php echo $form_data['role'] === 'buyer' ? 'selected' : ''; ?>>Buyer</option>
                                     <option value="seller" <?php echo $form_data['role'] === 'seller' ? 'selected' : ''; ?>>Seller</option>
+                                    <?php if (adminIsSuperAdmin()): ?>
                                     <option value="admin" <?php echo $form_data['role'] === 'admin' ? 'selected' : ''; ?>>Admin</option>
+                                    <?php endif; ?>
                                 </select>
                             </div>
                         </div>
