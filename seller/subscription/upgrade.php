@@ -47,7 +47,7 @@ if (empty($plans)) {
 }
 
 // Paystack Configuration
-$paystack_public_key = 'pk_test_3d8772ab51c1407f1302d2fffc114220b0b1d9ee'; // REPLACE WITH YOUR ACTUAL TEST KEY
+$paystack_public_key = PAYSTACK_PUBLIC_KEY; // REPLACE WITH YOUR ACTUAL TEST KEY
 
 $page_title = "Upgrade Subscription";
 $page_css = 'dashboard.css';
@@ -227,7 +227,7 @@ $page_css = 'dashboard.css';
                             
                             <!-- Payment Info -->
                             <div class="text-center">
-                                <img src="https://paystack.com/assets/img/paystack-logo-og.png" alt="Paystack" height="30" class="mb-3">
+                                <img src="../../assets/images/payment-methods.png" alt="Paystack" height="30" style="background-color: gray; padding:2px" class="mb-3">
                                 <p class="small text-muted mb-0">
                                     <i class="bi bi-shield-check me-1"></i> 
                                     Secure payment powered by Paystack

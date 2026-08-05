@@ -33,7 +33,7 @@ if (empty($plans)) {
 }
 
 // Paystack Configuration
-$paystack_public_key = 'pk_test_3d8772ab51c1407f1302d2fffc114220b0b1d9ee'; // Replace with your actual key
+$paystack_public_key = PAYSTACK_PUBLIC_KEY; // Replace with your actual key
 
 $page_title = "Seller Pricing - Green Agric Nigeria";
 $page_css = 'pricing.css';

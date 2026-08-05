@@ -144,7 +144,7 @@ $page_css = 'dashboard.css';
                                 <li>
                                     <button class="dropdown-item" type="button" 
                                             onclick="approveAllPending()">
-                                        <i class="bi bi-check-circle me-2"></i> Approve All1
+                                        <i class="bi bi-check-circle me-2"></i> Approve All
                                     </button>
                                 </li>
                                 <li>
@@ -292,7 +292,7 @@ $page_css = 'dashboard.css';
                 <?php if($total_pending > 0): ?>
                     <div class="text-muted d-none d-md-block">
                         <button class="btn btn-sm btn-outline-success" onclick="approveAllPending()">
-                            <i class="bi bi-check-all me-1"></i> Approve All3
+                            <i class="bi bi-check-all me-1"></i> Approve All
                         </button>
                     </div>
                 <?php endif; ?>

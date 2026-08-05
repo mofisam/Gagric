@@ -239,10 +239,10 @@ include '../../includes/header.php';
                     <p class="text-center">Having issues with your delivery?</p>
                     
                     <div class="d-grid gap-2">
-                        <a href="#" class="btn btn-outline-success">
+                        <a href="https://wa.me/2347030419150" class="btn btn-outline-success">
                             <i class="bi bi-chat-dots me-2"></i> Chat with Support
                         </a>
-                        <a href="#" class="btn btn-outline-success">
+                        <a href="tel:+2347030419150" class="btn btn-outline-success">
                             <i class="bi bi-telephone me-2"></i> Call Support
                         </a>
                         <a href="../orders/order-details.php?id=<?php echo $order_id; ?>" class="btn btn-outline-success">
