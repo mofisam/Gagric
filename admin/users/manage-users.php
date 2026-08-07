@@ -5,21 +5,79 @@ requireAdminPermission('users');
 require_once '../../classes/Database.php';
 
 $db = new Database();
+$current_admin_id = $_SESSION['user_id'];
+
+/**
+ * Shared guard for delete/restore actions: only a super-admin can act on
+ * another admin account, and nobody can act on their own account here.
+ */
+function canActOnUser($db, $target_id, $current_admin_id) {
+    if ((int)$target_id === (int)$current_admin_id) {
+        return "You can't perform this action on your own account.";
+    }
+    $target = $db->fetchOne("SELECT role FROM users WHERE id = ?", [$target_id]);
+    if (!$target) {
+        return 'User not found.';
+    }
+    if ($target['role'] === 'admin' && !adminIsSuperAdmin()) {
+        return 'Only a super-admin can perform this action on an admin account.';
+    }
+    return null;
+}
 
 // Handle user actions
 if (isset($_GET['activate'])) {
     $user_id = (int)$_GET['activate'];
-    $db->query("UPDATE users SET is_active = TRUE WHERE id = ?", [$user_id]);
-    setFlashMessage('User activated successfully', 'success');
+    $guard_error = canActOnUser($db, $user_id, $current_admin_id);
+    if ($guard_error) {
+        setFlashMessage($guard_error, 'error');
+    } else {
+        $db->query("UPDATE users SET is_active = TRUE WHERE id = ?", [$user_id]);
+        setFlashMessage('User activated successfully', 'success');
+    }
     header('Location: manage-users.php');
     exit;
 }
 
 if (isset($_GET['deactivate'])) {
     $user_id = (int)$_GET['deactivate'];
-    $db->query("UPDATE users SET is_active = FALSE WHERE id = ?", [$user_id]);
-    setFlashMessage('User deactivated successfully', 'warning');
+    $guard_error = canActOnUser($db, $user_id, $current_admin_id);
+    if ($guard_error) {
+        setFlashMessage($guard_error, 'error');
+    } else {
+        $db->query("UPDATE users SET is_active = FALSE WHERE id = ?", [$user_id]);
+        setFlashMessage('User deactivated successfully', 'warning');
+    }
     header('Location: manage-users.php');
+    exit;
+}
+
+// Soft delete: never removes the row (which would break every order,
+// product, review, etc. that references this user) - just marks it
+// deleted and inactive, blocking login while keeping all history intact.
+if (isset($_GET['delete'])) {
+    $user_id = (int)$_GET['delete'];
+    $guard_error = canActOnUser($db, $user_id, $current_admin_id);
+    if ($guard_error) {
+        setFlashMessage($guard_error, 'error');
+    } else {
+        $db->query("UPDATE users SET is_active = FALSE, deleted_at = NOW() WHERE id = ?", [$user_id]);
+        setFlashMessage('User deleted. Their orders, products, and other records are untouched - restore them anytime from the Deleted filter.', 'success');
+    }
+    header('Location: manage-users.php');
+    exit;
+}
+
+if (isset($_GET['restore'])) {
+    $user_id = (int)$_GET['restore'];
+    $guard_error = canActOnUser($db, $user_id, $current_admin_id);
+    if ($guard_error) {
+        setFlashMessage($guard_error, 'error');
+    } else {
+        $db->query("UPDATE users SET deleted_at = NULL WHERE id = ?", [$user_id]);
+        setFlashMessage('User restored. Re-activate their account below if needed.', 'success');
+    }
+    header('Location: manage-users.php?status=deleted');
     exit;
 }
 
@@ -49,10 +107,15 @@ if (!empty($role)) {
 
 if (!empty($status)) {
     if ($status === 'active') {
-        $where .= " AND u.is_active = TRUE";
+        $where .= " AND u.is_active = TRUE AND u.deleted_at IS NULL";
     } elseif ($status === 'inactive') {
-        $where .= " AND u.is_active = FALSE";
+        $where .= " AND u.is_active = FALSE AND u.deleted_at IS NULL";
+    } elseif ($status === 'deleted') {
+        $where .= " AND u.deleted_at IS NOT NULL";
     }
+} else {
+    // Default view: hide deleted users unless specifically filtered for.
+    $where .= " AND u.deleted_at IS NULL";
 }
 
 // Get users
@@ -66,17 +129,20 @@ $users = $db->fetchAll("
 ", $params);
 
 // Total count for pagination
-$total_users = $db->fetchOne("SELECT COUNT(*) as count FROM users u $where", $params)['count'];
+$result = $db->fetchOne("SELECT COUNT(*) as count FROM users u $where", $params);
+
+$total_users = $result['count'] ?? 0;
 $total_pages = ceil($total_users / $limit);
 
 // Stats
 $stats = [
-    'total_users' => $db->fetchOne("SELECT COUNT(*) as count FROM users")['count'],
-    'total_buyers' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE role = 'buyer' AND is_active = TRUE")['count'],
-    'total_sellers' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE role = 'seller' AND is_active = TRUE")['count'],
-    'active_users' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE is_active = TRUE")['count'],
-    'inactive_users' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE is_active = FALSE")['count'],
-    'today_users' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = CURDATE()")['count']
+    'total_users' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL")['count'],
+    'total_buyers' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE role = 'buyer' AND is_active = TRUE AND deleted_at IS NULL")['count'],
+    'total_sellers' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE role = 'seller' AND is_active = TRUE AND deleted_at IS NULL")['count'],
+    'active_users' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE is_active = TRUE AND deleted_at IS NULL")['count'],
+    'inactive_users' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE is_active = FALSE AND deleted_at IS NULL")['count'],
+    'deleted_users' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE deleted_at IS NOT NULL")['count'],
+    'today_users' => $db->fetchOne("SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = CURDATE() AND deleted_at IS NULL")['count']
 ];
 
 $page_title = "Manage Users";
@@ -287,6 +353,7 @@ require_once '../../includes/header.php';
                                     <option value="">All Status</option>
                                     <option value="active" <?php echo $status === 'active' ? 'selected' : ''; ?>>Active</option>
                                     <option value="inactive" <?php echo $status === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                                    <option value="deleted" <?php echo $status === 'deleted' ? 'selected' : ''; ?>>Deleted</option>
                                 </select>
                             </div>
                             <div class="col-6 col-md-2">
@@ -400,9 +467,13 @@ require_once '../../includes/header.php';
                                                 <?php endif; ?>
                                             </td>
                                             <td class="d-none d-md-table-cell">
-                                                <span class="badge bg-<?php echo $status_colors[$user['is_active'] ? 'active' : 'inactive']; ?>">
-                                                    <?php echo $user['is_active'] ? 'Active' : 'Inactive'; ?>
-                                                </span>
+                                                <?php if (!empty($user['deleted_at'])): ?>
+                                                    <span class="badge bg-dark">Deleted</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-<?php echo $status_colors[$user['is_active'] ? 'active' : 'inactive']; ?>">
+                                                        <?php echo $user['is_active'] ? 'Active' : 'Inactive'; ?>
+                                                    </span>
+                                                <?php endif; ?>
                                             </td>
                                             <td class="d-none d-md-table-cell">
                                                 <?php echo date('M j, Y', strtotime($user['created_at'])); ?>
@@ -410,21 +481,40 @@ require_once '../../includes/header.php';
                                             <td class="d-none d-md-table-cell text-center">
                                                 <div class="btn-group btn-group-sm">
                                                     <a href="user-details.php?id=<?php echo $user['id']; ?>" 
-                                                       class="btn btn-outline-primary">
+                                                       class="btn btn-outline-primary" title="View">
                                                         <i class="bi bi-eye"></i>
                                                     </a>
-                                                    <?php if (!$user['is_active']): ?>
-                                                        <a href="?activate=<?php echo $user['id']; ?>" 
-                                                           class="btn btn-outline-success"
-                                                           onclick="return confirm('Activate this user?')">
-                                                            <i class="bi bi-check"></i>
+                                                    <?php if (!empty($user['deleted_at'])): ?>
+                                                        <a href="?restore=<?php echo $user['id']; ?>" 
+                                                           class="btn btn-outline-success" title="Restore"
+                                                           onclick="return confirm('Restore this user? They will be able to log in again once you re-activate their account.')">
+                                                            <i class="bi bi-arrow-counterclockwise"></i>
                                                         </a>
-                                                    <?php else: ?>
-                                                        <a href="?deactivate=<?php echo $user['id']; ?>" 
-                                                           class="btn btn-outline-warning"
-                                                           onclick="return confirm('Deactivate this user?')">
-                                                            <i class="bi bi-x"></i>
+                                                    <?php elseif ($user['role'] !== 'admin' || adminIsSuperAdmin()): ?>
+                                                        <a href="edit-user.php?id=<?php echo $user['id']; ?>" 
+                                                           class="btn btn-outline-secondary" title="Edit">
+                                                            <i class="bi bi-pencil"></i>
                                                         </a>
+                                                        <?php if ($user['id'] != $current_admin_id): ?>
+                                                            <?php if (!$user['is_active']): ?>
+                                                                <a href="?activate=<?php echo $user['id']; ?>" 
+                                                                   class="btn btn-outline-success" title="Activate"
+                                                                   onclick="return confirm('Activate this user?')">
+                                                                    <i class="bi bi-check"></i>
+                                                                </a>
+                                                            <?php else: ?>
+                                                                <a href="?deactivate=<?php echo $user['id']; ?>" 
+                                                                   class="btn btn-outline-warning" title="Deactivate"
+                                                                   onclick="return confirm('Deactivate this user?')">
+                                                                    <i class="bi bi-x"></i>
+                                                                </a>
+                                                            <?php endif; ?>
+                                                            <a href="?delete=<?php echo $user['id']; ?>" 
+                                                               class="btn btn-outline-danger" title="Delete"
+                                                               onclick="return confirm('Delete this user? Their orders, products, and other records will be kept - this just blocks their access. You can restore them later.')">
+                                                                <i class="bi bi-trash"></i>
+                                                            </a>
+                                                        <?php endif; ?>
                                                     <?php endif; ?>
                                                 </div>
                                             </td>
@@ -451,9 +541,13 @@ require_once '../../includes/header.php';
                                                                 <?php endif; ?>
                                                             </div>
                                                         </div>
-                                                        <span class="badge bg-<?php echo $status_colors[$user['is_active'] ? 'active' : 'inactive']; ?>">
-                                                            <?php echo $user['is_active'] ? 'Active' : 'Inactive'; ?>
-                                                        </span>
+                                                        <?php if (!empty($user['deleted_at'])): ?>
+                                                            <span class="badge bg-dark">Deleted</span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-<?php echo $status_colors[$user['is_active'] ? 'active' : 'inactive']; ?>">
+                                                                <?php echo $user['is_active'] ? 'Active' : 'Inactive'; ?>
+                                                            </span>
+                                                        <?php endif; ?>
                                                     </div>
                                                     
                                                     <!-- Row 2: Contact Details -->
@@ -480,18 +574,37 @@ require_once '../../includes/header.php';
                                                                class="btn btn-sm btn-outline-primary">
                                                                 <i class="bi bi-eye"></i>
                                                             </a>
-                                                            <?php if (!$user['is_active']): ?>
-                                                                <a href="?activate=<?php echo $user['id']; ?>" 
+                                                            <?php if (!empty($user['deleted_at'])): ?>
+                                                                <a href="?restore=<?php echo $user['id']; ?>" 
                                                                    class="btn btn-sm btn-outline-success"
-                                                                   onclick="return confirm('Activate this user?')">
-                                                                    <i class="bi bi-check"></i>
+                                                                   onclick="return confirm('Restore this user?')">
+                                                                    <i class="bi bi-arrow-counterclockwise"></i>
                                                                 </a>
-                                                            <?php else: ?>
-                                                                <a href="?deactivate=<?php echo $user['id']; ?>" 
-                                                                   class="btn btn-sm btn-outline-warning"
-                                                                   onclick="return confirm('Deactivate this user?')">
-                                                                    <i class="bi bi-x"></i>
+                                                            <?php elseif ($user['role'] !== 'admin' || adminIsSuperAdmin()): ?>
+                                                                <a href="edit-user.php?id=<?php echo $user['id']; ?>" 
+                                                                   class="btn btn-sm btn-outline-secondary">
+                                                                    <i class="bi bi-pencil"></i>
                                                                 </a>
+                                                                <?php if ($user['id'] != $current_admin_id): ?>
+                                                                    <?php if (!$user['is_active']): ?>
+                                                                        <a href="?activate=<?php echo $user['id']; ?>" 
+                                                                           class="btn btn-sm btn-outline-success"
+                                                                           onclick="return confirm('Activate this user?')">
+                                                                            <i class="bi bi-check"></i>
+                                                                        </a>
+                                                                    <?php else: ?>
+                                                                        <a href="?deactivate=<?php echo $user['id']; ?>" 
+                                                                           class="btn btn-sm btn-outline-warning"
+                                                                           onclick="return confirm('Deactivate this user?')">
+                                                                            <i class="bi bi-x"></i>
+                                                                        </a>
+                                                                    <?php endif; ?>
+                                                                    <a href="?delete=<?php echo $user['id']; ?>" 
+                                                                       class="btn btn-sm btn-outline-danger"
+                                                                       onclick="return confirm('Delete this user? Records are kept, this just blocks access.')">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </a>
+                                                                <?php endif; ?>
                                                             <?php endif; ?>
                                                         </div>
                                                     </div>

@@ -1,15 +1,9 @@
 <?php
 require_once '../../includes/auth.php';
 requireAdmin();
-
-if (!adminHasPermission('users')) {
-    setFlashMessage("You do not have the permission to view this page.", 'error');
-    header('Location: ' . BASE_URL . '/admin/dashboard.php');
-    exit;
-}
-
-require_once '../../includes/header.php';
+requireAdminPermission('users');
 require_once '../../classes/Database.php';
+require_once '../../includes/functions.php';
 
 $db = new Database();
 
@@ -20,7 +14,6 @@ if (!$user_id) {
     exit;
 }
 
-// Get user details
 $user = $db->fetchOne("
     SELECT 
         u.*,
@@ -33,7 +26,6 @@ $user = $db->fetchOne("
     FROM users u
     LEFT JOIN seller_profiles sp ON u.id = sp.user_id
     WHERE u.id = ?
-   
 ", [$user_id]);
 
 if (!$user) {
@@ -41,6 +33,11 @@ if (!$user) {
     header('Location: manage-users.php');
     exit;
 }
+
+$current_admin_id = $_SESSION['user_id'];
+$is_self = ((int)$user['id'] === (int)$current_admin_id);
+$target_is_admin = $user['role'] === 'admin';
+$can_manage_this_user = !$target_is_admin || adminIsSuperAdmin();
 
 // Get user's recent orders
 $recent_orders = $db->fetchAll("
@@ -62,7 +59,7 @@ if ($user['role'] === 'seller') {
 }
 
 $page_title = "User Details - " . $user['first_name'] . ' ' . $user['last_name'];
-
+require_once '../../includes/header.php';
 ?>
 
 <div class="container-fluid">
@@ -73,9 +70,27 @@ $page_title = "User Details - " . $user['first_name'] . ' ' . $user['last_name']
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2">User Details</h1>
                 <div class="btn-toolbar mb-2 mb-md-0">
+                    <?php if ($can_manage_this_user && empty($user['deleted_at'])): ?>
+                        <a href="edit-user.php?id=<?php echo $user_id; ?>" class="btn btn-outline-primary me-2">
+                            <i class="bi bi-pencil me-1"></i> Edit
+                        </a>
+                    <?php endif; ?>
                     <a href="manage-users.php" class="btn btn-secondary">Back to Users</a>
                 </div>
             </div>
+
+            <?php if (!empty($user['deleted_at'])): ?>
+                <div class="alert alert-dark">
+                    <i class="bi bi-trash me-2"></i>
+                    This user was deleted on <?php echo date('M j, Y g:i A', strtotime($user['deleted_at'])); ?>.
+                    Their historical records below are untouched. Restore them from Manage Users (Deleted filter) to edit again.
+                </div>
+            <?php elseif (!$can_manage_this_user): ?>
+                <div class="alert alert-info">
+                    <i class="bi bi-shield-lock me-2"></i>
+                    This is an admin account - only a super-admin can edit it. You can still view their details below.
+                </div>
+            <?php endif; ?>
 
             <!-- User Info Card -->
             <div class="row">
@@ -112,9 +127,13 @@ $page_title = "User Details - " . $user['first_name'] . ' ' . $user['last_name']
                                 <tr>
                                     <th>Status:</th>
                                     <td>
-                                        <span class="badge bg-<?php echo $user['is_active'] ? 'success' : 'secondary'; ?>">
-                                            <?php echo $user['is_active'] ? 'Active' : 'Inactive'; ?>
-                                        </span>
+                                        <?php if (!empty($user['deleted_at'])): ?>
+                                            <span class="badge bg-dark">Deleted</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-<?php echo $user['is_active'] ? 'success' : 'secondary'; ?>">
+                                                <?php echo $user['is_active'] ? 'Active' : 'Inactive'; ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                                 <tr>
@@ -164,7 +183,7 @@ $page_title = "User Details - " . $user['first_name'] . ' ' . $user['last_name']
                                 <?php endif; ?>
                                 <tr>
                                     <th>Total Sales:</th>
-                                    ₦<?php echo number_format($user['total_sales'] ?? 0, 2); ?>
+                                    <td>₦<?php echo number_format($user['total_sales'] ?? 0, 2); ?></td>
                                 </tr>
                                 <tr>
                                     <th>Rating:</th>
