@@ -26,9 +26,65 @@ if (!isset($seller_stats)) {
 $seller_name = $_SESSION['user_name'] ?? 'Seller';
 $seller_business = $_SESSION['business_name'] ?? 'Your Store';
 $seller_avatar = $_SESSION['avatar'] ?? null;
-$seller_rating = $_SESSION['seller_rating'] ?? 0;
-$seller_level = $_SESSION['seller_level'] ?? 'Bronze';
 $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
+
+/*
+|--------------------------------------------------------------------------
+| SELLER RATING, LEVEL & SUBSCRIPTION
+|--------------------------------------------------------------------------
+| Computed live from real data every time the sidebar renders (not just
+| cached from session) so it's never stale, then cached back into the
+| session for anything else that wants a quick read of it. This also fixes
+| a pre-existing bug elsewhere in the app: seller_profiles.avg_rating is a
+| stored column that nothing ever updates, so it always reads 0 - the
+| correct live average comes from AVG(rating) on seller_ratings directly.
+*/
+require_once __DIR__ . '/../../classes/Database.php';
+require_once __DIR__ . '/../../includes/functions.php';
+
+$sidebar_db = new Database();
+$sidebar_seller_id = $_SESSION['user_id'] ?? 0;
+
+$rating_data = $sidebar_db->fetchOne(
+    "SELECT AVG(rating) as avg_rating, COUNT(*) as review_count FROM seller_ratings WHERE seller_id = ?",
+    [$sidebar_seller_id]
+);
+$seller_rating = (float) ($rating_data['avg_rating'] ?? 0);
+$seller_review_count = (int) ($rating_data['review_count'] ?? 0);
+$seller_level = calculateSellerLevel($seller_rating, $seller_review_count);
+
+$_SESSION['seller_rating'] = $seller_rating;
+$_SESSION['seller_level'] = $seller_level;
+
+$seller_subscription = $sidebar_db->fetchOne(
+    "SELECT ss.subscription_type, ss.end_date, ss.is_active, p.name as plan_name
+     FROM seller_subscriptions ss
+     LEFT JOIN subscription_plans p ON ss.plan_id = p.id
+     WHERE ss.seller_id = ? AND ss.is_active = 1
+     ORDER BY ss.id DESC
+     LIMIT 1",
+    [$sidebar_seller_id]
+);
+
+$sidebar_subscription_label = 'No Active Plan';
+$sidebar_subscription_class = 'secondary';
+$sidebar_subscription_days_left = null;
+
+if ($seller_subscription) {
+    $sidebar_subscription_days_left = (new DateTime())->diff(new DateTime($seller_subscription['end_date']))->days;
+    $subscription_expired = strtotime($seller_subscription['end_date']) < time();
+
+    if ($subscription_expired) {
+        $sidebar_subscription_label = 'Expired';
+        $sidebar_subscription_class = 'danger';
+    } elseif ($seller_subscription['subscription_type'] === 'free_trial') {
+        $sidebar_subscription_label = 'Free Trial';
+        $sidebar_subscription_class = 'info';
+    } else {
+        $sidebar_subscription_label = $seller_subscription['plan_name'] ?? 'Active Plan';
+        $sidebar_subscription_class = 'success';
+    }
+}
 ?>
 
 <!-- Mobile backdrop for sidebar -->
@@ -49,7 +105,7 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
         </div>
     </div>
     
-    <div class="position-sticky pt-3">
+    <div class="pt-3">
         <!-- Enhanced Seller Profile Card -->
         <div class="seller-profile-card text-center mb-4 p-3">
             <div class="position-relative d-inline-block">
@@ -90,6 +146,21 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
                 <i class="bi bi-calendar-check me-1"></i>
                 Member since <?php echo date('M Y', strtotime($seller_join_date)); ?>
             </small>
+
+            <!-- Subscription Plan -->
+            <a href="<?php echo BASE_URL; ?>/seller/subscription/manage.php" class="text-decoration-none">
+                <div class="mt-2 subscription-pill">
+                    <span class="badge bg-<?php echo $sidebar_subscription_class; ?>">
+                        <i class="bi bi-award me-1"></i>
+                        <?php echo htmlspecialchars($sidebar_subscription_label); ?>
+                    </span>
+                    <?php if ($sidebar_subscription_days_left !== null && $sidebar_subscription_class !== 'danger'): ?>
+                        <small class="d-block text-muted mt-1"><?php echo $sidebar_subscription_days_left; ?> days left</small>
+                    <?php elseif ($sidebar_subscription_class === 'danger' || $sidebar_subscription_class === 'secondary'): ?>
+                        <small class="d-block text-muted mt-1">Tap to renew</small>
+                    <?php endif; ?>
+                </div>
+            </a>
         </div>
         
         <!-- Main Navigation -->
@@ -384,6 +455,17 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
 
 <!-- Enhanced CSS Styles -->
 <style>
+/* Desktop sidebar: stay in place while the page scrolls, with its own
+   independent scrollbar if the menu content is taller than the viewport. */
+@media (min-width: 768px) {
+    #sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+    }
+}
+
 /* Mobile sidebar styles - MATCHING ADMIN PANEL */
 @media (max-width: 767.98px) {
     #sidebar {
@@ -485,6 +567,15 @@ $seller_join_date = $_SESSION['join_date'] ?? date('Y-m-d');
     border: 2px solid rgba(255,255,255,0.5);
     padding: 0.3rem 0.6rem;
     font-size: 0.7rem;
+}
+
+.subscription-pill {
+    cursor: pointer;
+}
+
+.subscription-pill .badge {
+    font-size: 0.7rem;
+    padding: 0.35rem 0.6rem;
 }
 
 /* Navigation link styles */

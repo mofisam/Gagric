@@ -4,6 +4,28 @@
  */
 
 /**
+ * Work out a seller's badge tier from their real rating data. Requires a
+ * minimum review count at each tier so a single 5-star review can't jump
+ * someone straight to Platinum - reputation has to be earned over a few
+ * genuine reviews, not just a lucky first one.
+ */
+function calculateSellerLevel($avg_rating, $review_count) {
+    $avg_rating = (float) $avg_rating;
+    $review_count = (int) $review_count;
+
+    if ($avg_rating >= 4.8 && $review_count >= 10) {
+        return 'Platinum';
+    }
+    if ($avg_rating >= 4.3 && $review_count >= 5) {
+        return 'Gold';
+    }
+    if ($avg_rating >= 3.5 && $review_count >= 3) {
+        return 'Silver';
+    }
+    return 'Bronze';
+}
+
+/**
  * Format currency for Nigerian Naira
  */
 function formatCurrency($amount) {
