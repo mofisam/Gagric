@@ -243,7 +243,7 @@ $show_coming_soon_banner = !preg_match('#/admin/#', $script_path);
     <?php if ($show_coming_soon_banner): ?>
     <div id="comingSoonBanner" class="coming-soon-banner">
         <i class="bi bi-cone-striped me-2"></i>
-        <span>Comming soon</span>
+        <span>Comming soon: We're putting the finishing touches on Green Agric — Thanks for your patience!</span>
     </div>
     <style>
         .coming-soon-banner {
