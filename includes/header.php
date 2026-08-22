@@ -16,6 +16,12 @@ require_once __DIR__ . '/../includes/auth.php';
 $is_logged_in = isset($_SESSION['user_id']);
 $user_role = $_SESSION['user_role'] ?? null;
 $user_name = $_SESSION['user_name'] ?? null;
+
+// Show a "Coming Soon" banner across the public-facing site (buyer, seller,
+// homepage, auth pages, etc.) regardless of login state, while it's still
+// being finished up - not on admin pages, which aren't public.
+$script_path = $_SERVER['SCRIPT_NAME'] ?? '';
+$show_coming_soon_banner = !preg_match('#/admin/#', $script_path);
 ?>
 <?PHP if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -234,6 +240,51 @@ $user_name = $_SESSION['user_name'] ?? null;
     </script>
 </head>
 <body>
+    <?php if ($show_coming_soon_banner): ?>
+    <div id="comingSoonBanner" class="coming-soon-banner">
+        <i class="bi bi-cone-striped me-2"></i>
+        <span>We're putting the finishing touches on Green Agric — some things may still be a work in progress. Thanks for your patience!</span>
+    </div>
+    <style>
+        .coming-soon-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1040;
+            background: #fff3cd;
+            color: #664d03;
+            border-bottom: 1px solid #ffe69c;
+            text-align: center;
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+        }
+        .navbar.fixed-top {
+            top: 38px;
+        }
+        body {
+            padding-top: 118px;
+        }
+        @media (max-width: 767.98px) {
+            .coming-soon-banner {
+                font-size: 0.75rem;
+                padding: 0.4rem 0.75rem;
+            }
+            .coming-soon-banner span {
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+            .navbar.fixed-top {
+                top: 52px;
+            }
+            body {
+                padding-top: 132px;
+            }
+        }
+    </style>
+    <?php endif; ?>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
         <div class="container">
