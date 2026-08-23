@@ -83,7 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="coming-soon-icon mb-3">
             <i class="bi bi-cone-striped"></i>
         </div>
-        <h2 class="mb-2">Green Agric</h2>
+        <h2 class="mb-0">Green Agric</h2>
+        <h5 class="mb-2 text-warning">Coming soon</h5>
         <p class="text-muted mb-4">We're putting the finishing touches on things. The site isn't open to the public just yet - if you have access, enter the password below.</p>
 
         <?php if ($error): ?>
