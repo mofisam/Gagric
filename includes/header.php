@@ -10,6 +10,20 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/../config/constants.php';
+
+// Site-wide password gate: the public site isn't open yet, so every page
+// except the admin backend and the gate page itself redirects to
+// coming-soon.php until the correct password (currently the super-admin's
+// own login password) has been entered this session.
+$script_path = $_SERVER['SCRIPT_NAME'] ?? '';
+$is_admin_path = (bool) preg_match('#/admin/#', $script_path);
+$is_coming_soon_page = (bool) preg_match('#/coming-soon\.php$#', $script_path);
+
+if (!$is_admin_path && !$is_coming_soon_page && empty($_SESSION['site_unlocked'])) {
+    header('Location: ' . BASE_URL . '/coming-soon.php?redirect=' . urlencode($_SERVER['REQUEST_URI'] ?? ''));
+    exit;
+}
+
 require_once __DIR__ . '/../classes/Database.php';
 require_once __DIR__ . '/../includes/auth.php';
 // Check if user is logged in
@@ -243,7 +257,7 @@ $show_coming_soon_banner = !preg_match('#/admin/#', $script_path);
     <?php if ($show_coming_soon_banner): ?>
     <div id="comingSoonBanner" class="coming-soon-banner">
         <i class="bi bi-cone-striped me-2"></i>
-        <span>Coming soon: We're putting the finishing touches on Green Agric — Thanks for your patience!</span>
+        <span>We're putting the finishing touches on Green Agric — some things may still be a work in progress. Thanks for your patience!</span>
     </div>
     <style>
         .coming-soon-banner {
