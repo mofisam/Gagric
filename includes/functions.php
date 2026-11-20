@@ -26,6 +26,93 @@ function calculateSellerLevel($avg_rating, $review_count) {
 }
 
 /**
+ * Store a product image resized and compressed for faster page delivery.
+ * Returns the saved filename, or false if the image cannot be processed.
+ */
+function saveOptimizedProductImage($uploadedFile, $uploadPath, $filenamePrefix) {
+    if (empty($uploadedFile['tmp_name']) || !is_uploaded_file($uploadedFile['tmp_name'])) {
+        return false;
+    }
+
+    $imageInfo = @getimagesize($uploadedFile['tmp_name']);
+    if (!$imageInfo || empty($imageInfo[0]) || empty($imageInfo[1])) {
+        return false;
+    }
+
+    $imageType = $imageInfo[2];
+    $extensions = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png'];
+    if (defined('IMAGETYPE_WEBP')) {
+        $extensions[IMAGETYPE_WEBP] = 'webp';
+    }
+    if (!isset($extensions[$imageType])) {
+        return false;
+    }
+
+    if (!is_dir($uploadPath) && !mkdir($uploadPath, 0755, true) && !is_dir($uploadPath)) {
+        return false;
+    }
+
+    $loaders = [
+        IMAGETYPE_JPEG => 'imagecreatefromjpeg',
+        IMAGETYPE_PNG => 'imagecreatefrompng',
+    ];
+    if (defined('IMAGETYPE_WEBP')) {
+        $loaders[IMAGETYPE_WEBP] = 'imagecreatefromwebp';
+    }
+
+    if (!isset($loaders[$imageType]) || !function_exists($loaders[$imageType])) {
+        $filename = $filenamePrefix . '.' . $extensions[$imageType];
+        return move_uploaded_file($uploadedFile['tmp_name'], rtrim($uploadPath, '/\\') . DIRECTORY_SEPARATOR . $filename)
+            ? $filename
+            : false;
+    }
+
+    $source = @$loaders[$imageType]($uploadedFile['tmp_name']);
+    if (!$source) {
+        return false;
+    }
+
+    $width = (int) $imageInfo[0];
+    $height = (int) $imageInfo[1];
+    $maxDimension = 1600;
+    $scale = min(1, $maxDimension / max($width, $height));
+    $targetWidth = max(1, (int) round($width * $scale));
+    $targetHeight = max(1, (int) round($height * $scale));
+    $output = imagecreatetruecolor($targetWidth, $targetHeight);
+
+    $preserveAlpha = in_array($imageType, [IMAGETYPE_PNG, defined('IMAGETYPE_WEBP') ? IMAGETYPE_WEBP : -1], true);
+    if ($preserveAlpha) {
+        imagealphablending($output, false);
+        imagesavealpha($output, true);
+        $transparent = imagecolorallocatealpha($output, 0, 0, 0, 127);
+        imagefilledrectangle($output, 0, 0, $targetWidth, $targetHeight, $transparent);
+    }
+
+    imagecopyresampled($output, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $width, $height);
+
+    if (function_exists('imagewebp')) {
+        $filename = $filenamePrefix . '.webp';
+        $saved = imagewebp($output, rtrim($uploadPath, '/\\') . DIRECTORY_SEPARATOR . $filename, 82);
+    } elseif ($imageType === IMAGETYPE_JPEG) {
+        $filename = $filenamePrefix . '.jpg';
+        $saved = imagejpeg($output, rtrim($uploadPath, '/\\') . DIRECTORY_SEPARATOR . $filename, 82);
+    } elseif ($imageType === IMAGETYPE_PNG) {
+        $filename = $filenamePrefix . '.png';
+        $saved = imagepng($output, rtrim($uploadPath, '/\\') . DIRECTORY_SEPARATOR . $filename, 6);
+    } else {
+        $filename = $filenamePrefix . '.webp';
+        $saved = move_uploaded_file(
+            $uploadedFile['tmp_name'],
+            rtrim($uploadPath, '/\\') . DIRECTORY_SEPARATOR . $filename
+        );
+    }
+
+    imagedestroy($source);
+    imagedestroy($output);
+    return $saved ? $filename : false;
+}
+
+/**
  * Format currency for Nigerian Naira
  */
 function formatCurrency($amount) {

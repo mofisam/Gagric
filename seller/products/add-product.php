@@ -258,12 +258,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 foreach ($uploaded_images as $index => $image) {
-                    // Generate unique filename
-                    $file_extension = strtolower(pathinfo($image['name'], PATHINFO_EXTENSION));
-                    $filename = 'product_' . $product_id . '_' . uniqid() . '_' . time() . '.' . $file_extension;
-                    $filepath = $upload_path . $filename;
-                    
-                    if (move_uploaded_file($image['tmp_name'], $filepath)) {
+                    $filename_prefix = 'product_' . $product_id . '_' . uniqid() . '_' . time();
+                    $filename = saveOptimizedProductImage($image, $upload_path, $filename_prefix);
+
+                    if ($filename !== false) {
                         // Insert into product_images table
                         $image_data = [
                             'product_id' => $product_id,
